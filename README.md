@@ -1,8 +1,21 @@
 # PDF2BOOK
 
-将扫描版 PDF 图书转换为 Kindle 友好的 EPUB 的自动排版全流程工具。
+> 让 AI 当你的电子书排版师 —— 把扫描版 PDF 一句话转成 Kindle 友好的 EPUB
 
-PDF2BOOK 通过 PaddleOCR PP-StructureV3 对扫描页面进行 OCR，自动识别标题层级、去除页眉页脚、合并跨页段落、裁剪插图，最终生成带目录、分章节、Kindle 优化的 EPUB。支持两阶段工作流：先生成可预览编辑的 Markdown，确认无误后再构建 EPUB。
+PDF2BOOK 是一个 AI 驱动的自动排版工具：AI 不是简单的 OCR 调用者，而是像一位编辑一样完成所有需要"理解内容"的决策——判断页面类型、提取元数据、校对 OCR 错字、推断章节结构，最终生成带目录、分章节、Kindle 优化的 EPUB。
+
+## 核心亮点：AI 是决策者，不是工具调用者
+
+传统转换工具只会"机械搬运"，PDF2BOOK 让 AI 承担 4 项编辑决策：
+
+| AI 决策 | 做什么 | 为什么需要 AI |
+|---|---|---|
+| **页面类型识别** | 审查 OCR 结果，判断封面/版权/目录/正文/尾页 | 需要理解页面内容语义，规则无法穷举 |
+| **元数据自动提取** | 从版权页提取书名、作者、ISBN、语言 | 扫描书 PDF 内嵌元数据通常缺失 |
+| **OCR 智能校对** | 修正错别字、调整标题层级、清理噪声 | OCR 对中文标点/生僻字易出错 |
+| **排版参数推断** | 统计标题分布，判断故事集 vs 长篇小说 | 不同书类型需要不同分章粒度 |
+
+**Trae Skill 一句话触发**：在 Trae 中说「把 XX.pdf 转成 EPUB」，AI 自动完成 9 步决策链（OCR → 分析页面 → 提取元数据 → 校对 → 推断排版 → 生成 EPUB）。详见 [`.trae/skills/pdf2book/SKILL.md`](.trae/skills/pdf2book/SKILL.md)。
 
 ## Features
 
@@ -29,41 +42,109 @@ pip install -e ".[ocr,dev]"
 
 **系统依赖**：Pandoc（由 `pypandoc_binary` 自动捆绑，无需单独安装）。
 
-## 快速开始
+## 使用方法
+
+### 准备工作
+
+1. 准备一本扫描版 PDF 图书（如 `世界神话传说.pdf`）
+2. （可选）创建配置文件 `config.yaml` 调整 OCR 和排版参数，参考 [配置](#配置) 一节
+3. 确认已安装依赖：`pip install -e ".[ocr,dev]"`
 
 ### 两阶段工作流（推荐）
 
-先生成 Markdown 预览，编辑确认后再构建 EPUB：
+先生成可预览的 Markdown，编辑确认后再构建 EPUB。适合需要人工校对 OCR 结果的场景。
+
+**阶段 1：PDF → OCR → Markdown**
 
 ```bash
-# 阶段 1：PDF → OCR → Markdown
-pdf2book ocr input.pdf --config config.yaml
+pdf2book ocr 世界神话传说.pdf --config config.yaml
+```
 
-# 输出：.pdf2book/book.md（可预览编辑） + .pdf2book/meta.md（元数据）
+运行后在工作目录（默认 `.pdf2book/`）生成：
 
-# （可选）编辑 book.md 修正 OCR 错误，编辑 meta.md 填写书名/作者
+| 文件 | 说明 |
+|---|---|
+| `.pdf2book/book.md` | OCR 识别的全文 Markdown，可编辑修正 |
+| `.pdf2book/meta.md` | 元数据 YAML（书名、作者、语言等） |
+| `.pdf2book/pages/page_NNNN.png` | 每页渲染图（可用作封面） |
+| `.pdf2book/images/pN_eM.png` | 裁剪出的插图 |
+| `.pdf2book/cache.db` | SQLite 缓存，支持断点续作 |
 
-# 阶段 2：Markdown → EPUB
-pdf2book epub .pdf2book/book.md -o output.epub \
+**编辑中间产物（可选但推荐）**
+
+OCR 结果可能有少量错误，建议人工校对后再构建 EPUB：
+
+- 编辑 `book.md`：修正错字、调整标题层级（`#`/`##`/`###`）、删除无关内容
+- 编辑 `meta.md`：填写正确的书名和作者。格式如下：
+
+```yaml
+---
+title: 世界神话传说
+author: 徐晨
+lang: zh-CN
+date: '2026-07-06'
+---
+```
+
+**阶段 2：Markdown → EPUB**
+
+```bash
+pdf2book epub .pdf2book/book.md -o 世界神话传说.epub \
     --cover .pdf2book/pages/page_0000.png
 ```
 
+`--cover` 指定封面图片，推荐用 PDF 第一页的渲染图（`page_0000.png`）。EPUB 会按 `chapter_level` 自动分章，目录按 `toc_depth` 生成。
+
 ### 一键模式
 
-不预览中间结果，一次完成转换：
+不需要预览中间结果，一次完成 PDF → EPUB 转换：
 
 ```bash
-pdf2book convert input.pdf -o output.epub \
+pdf2book convert 世界神话传说.pdf -o 世界神话传说.epub \
     --cover .pdf2book/pages/page_0000.png \
     --config config.yaml
 ```
 
 ### 断点续作
 
-OCR 阶段中断后可从缓存恢复，跳过已完成的页面：
+OCR 是最耗时的阶段。如果中途中断，可用 `--resume` 从缓存恢复，跳过已完成的页面：
 
 ```bash
-pdf2book ocr input.pdf --resume --config config.yaml
+pdf2book ocr 世界神话传说.pdf --resume --config config.yaml
+```
+
+### 常见场景
+
+**场景 1：故事集 / 短篇合集**
+
+每个故事是 H3 标题，希望每个故事独立成页、目录可跳转。在 `config.yaml` 中设置：
+
+```yaml
+epub:
+  toc_depth: 3        # 目录显示到故事标题
+  chapter_level: 3    # 每个 H3 故事独立分页
+```
+
+**场景 2：扫描书有封面/版权/目录页**
+
+前几页是封面、副封面、版权信息、目录，不需要 OCR。在 `config.yaml` 中设置：
+
+```yaml
+postprocess:
+  skip_first_pages: 5   # 跳过前 5 页（仍渲染，可用作封面）
+  skip_last_pages: 1    # 跳过最后 1 页（尾页/广告）
+```
+
+跳过的页面仍会渲染为 PNG（所以 `--cover` 仍可用 `page_0000.png`），只是不进行 OCR 和内容提取。
+
+**场景 3：长篇小说按章节分页**
+
+章节是 H1（`第X章`），希望每章独立成页：
+
+```yaml
+epub:
+  toc_depth: 2        # 目录显示章标题
+  chapter_level: 1    # 每个 H1 章节分页
 ```
 
 ## CLI 参考
