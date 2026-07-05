@@ -1,0 +1,83 @@
+/* Kindle-friendly EPUB stylesheet for pdf2book.
+ *
+ * Kindle (KDP / KF8) constraints honored:
+ *   - No `font-size` on body/p (readers control font size; setting it
+ *     triggers a KDP warning).
+ *   - No flexbox, grid, @media queries, or position:absolute (unsupported
+ *     or stripped by the MOBI conversion pipeline).
+ *   - line-height + text-indent for readable CJK paragraphs.
+ *   - h1 book title + h3 story titles centered; images capped to viewport.
+ */
+
+body {
+  line-height: 1.75;
+  margin: 0;
+  padding: 0.6em 0.8em;
+  font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+}
+
+p {
+  text-indent: 2em;
+  margin: 0;
+  text-align: justify;
+}
+
+/* Headings: centered, no text-indent carryover. */
+h1, h2, h3, h4 {
+  text-align: center;
+  font-weight: bold;
+  text-indent: 0;
+}
+
+/* h1: book title — prominent, generous spacing. */
+h1 {
+  margin-top: 3em;
+  margin-bottom: 2.5em;
+}
+
+/* h2: section header (rare in this book). */
+h2 {
+  margin-top: 2em;
+  margin-bottom: 1.2em;
+}
+
+/* h3: story titles — clear separation between stories. */
+h3 {
+  margin-top: 2em;
+  margin-bottom: 1.5em;
+}
+
+/* First paragraph after a heading: no indent (convention). */
+h1 + p,
+h2 + p,
+h3 + p,
+h4 + p {
+  text-indent: 0;
+}
+
+/* Images: block, centered, fit to screen. */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.2em auto;
+}
+
+/* Tables: full width, simple borders. */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+td, th {
+  border: 1px solid #999;
+  padding: 0.3em 0.5em;
+  text-align: left;
+  text-indent: 0;
+}
+
+th {
+  font-weight: bold;
+  background-color: #eee;
+}

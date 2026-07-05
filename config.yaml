@@ -1,0 +1,24 @@
+# PDF2BOOK default configuration
+
+ocr:
+  backend: paddle_pp        # paddle_pp (CPU, default) | paddle_vl (GPU, high quality)
+  dpi: 300
+  use_table_recognition: false
+  use_formula_recognition: false
+  use_region_detection: true
+
+postprocess:
+  drop_header_footer: true
+  merge_cross_page: true
+  infer_title_level: true
+  chapter_patterns:
+    - "第[一二三四五六七八九十百千0-9]+[章回节卷篇]"
+    - "Chapter\\s+[IVX0-9]+"
+
+epub:
+  css_path: null
+  cover: null
+  toc_depth: 2
+
+cache_db: ".pdf2book/cache.db"
+work_dir: ".pdf2book"

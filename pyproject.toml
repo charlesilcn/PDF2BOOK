@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pdf2book"
+version = "0.1.0"
+description = "Convert scanned PDF books to Kindle-friendly EPUB via OCR"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "pdf2book" }]
+dependencies = [
+    "pymupdf>=1.24",
+    "pypandoc_binary>=1.13",
+    "typer>=0.12",
+    "rich>=13",
+    "pydantic>=2",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+ocr = [
+    "paddlepaddle==3.0.0",
+    "paddleocr[doc-parser]==3.7.0",
+]
+dev = [
+    "pytest>=8",
+    "pytest-cov",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+pdf2book = "pdf2book.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pdf2book"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "slow: tests that are slow (real OCR model load + inference)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
