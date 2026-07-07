@@ -18,7 +18,8 @@ postprocess:
 epub:
   css_path: null
   cover: null
-  toc_depth: 2
+  toc_depth: 3
+  chapter_level: 3
 
 cache_db: ".pdf2book/cache.db"
 work_dir: ".pdf2book"

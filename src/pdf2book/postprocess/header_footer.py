@@ -78,10 +78,16 @@ def _drop_by_label(pages: list[PageResult]) -> None:
                 el.dropped = True
 
 
+# Element types that may carry page numbers misclassified by PP-StructureV3
+# as titles. Pure-numeric content in the margin from any of these types is
+# almost certainly a page number, not a heading.
+_PAGE_NUMBER_CANDIDATE_TYPES = frozenset({"text", "paragraph_title", "content_title", "doc_title"})
+
+
 def _drop_numeric_page_numbers(pages: list[PageResult]) -> None:
     for page in pages:
         for el in page.elements:
-            if el.dropped or el.type != "text":
+            if el.dropped or el.type not in _PAGE_NUMBER_CANDIDATE_TYPES:
                 continue
             if not _is_in_margin(el.bbox.cy, page.height):
                 continue

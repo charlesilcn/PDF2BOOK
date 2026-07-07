@@ -53,6 +53,17 @@ class Element(BaseModel):
     # `postprocess.images.extract_images` before `el.text` is overwritten
     # with the relative image path. `to_markdown` emits it as a caption.
     image_caption: str | None = None
+    # Three-tier confidence marking (Phase 4 refactor):
+    #   - `dropped=True`                  : noise (score<noise_threshold, empty/single-char)
+    #   - `low_confidence=True`           : suspect (score<low_threshold, non-empty multi-char)
+    #   - neither set                     : normal (score>=low_threshold, or score is None)
+    # `low_confidence` elements survive into book.md with a `>[low-confidence]` marker
+    # and are collected into review.json for AI correction.
+    low_confidence: bool = False
+    # AI-corrected text (Phase 5). Set by `review.applier` after constraint
+    # validation passes. `to_markdown` emits `ai_corrected` instead of `text`
+    # when set; `None` means "not reviewed" or "AI returned [UNCLEAR]".
+    ai_corrected: str | None = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -69,6 +80,14 @@ class PageResult(BaseModel):
     # rebuild this PageResult on resume via `OCRBackend.from_json`. Postprocess
     # stages ignore this field; it exists purely for resume support.
     raw_json: str | None = None
+    # Page classification result (Phase 3). Set by `page_classifier.classify_pages`.
+    # One of: cover/frontispiece/copyright/toc/preface/body/illustration/appendix/unknown.
+    # `to_markdown` skips decorative pages (cover/frontispiece/copyright/illustration);
+    # `epub.builder` inserts their `page_image_path` as raw PDF page images.
+    page_type: str = "unknown"
+    # Rendered page image path (Phase 3). Set by the pipeline for every page;
+    # used by `epub.builder` for decorative pages that bypass OCR-based layout.
+    page_image_path: Path | None = None
 
 
 Element.model_rebuild()

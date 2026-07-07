@@ -17,6 +17,7 @@ build/
 
 # Project-specific: work directory (regenerable via `pdf2book ocr --resume`)
 .pdf2book/
+.pdf2book_test/
 
 # Project-specific: generated EPUB outputs (regenerable)
 *.epub
@@ -24,6 +25,10 @@ build/
 # Project-specific: source PDF inputs (external, do not commit)
 PDFeBOOK/
 *.pdf
+
+# Tests (excluded from public repo)
+tests/
+test_config.yaml
 
 # IDE / editor
 .vscode/
@@ -36,3 +41,9 @@ Thumbs.db
 # Trae agent workspace
 .trae/
 .trae-html-share-packages/
+
+# Sensitive files
+*.env
+.env.*
+*.key
+*.pem

@@ -7,6 +7,10 @@
  *     or stripped by the MOBI conversion pipeline).
  *   - line-height + text-indent for readable CJK paragraphs.
  *   - h1 book title + h3 story titles centered; images capped to viewport.
+ *
+ * Phase 5 additions: chapter/dialogue fenced divs, blockquote, lists,
+ * image captions, footnotes, and hr — mirroring Chinese publishing
+ * conventions (双线装饰章节、对话缩进、引文灰底、图说居中小字).
  */
 
 body {
@@ -35,10 +39,13 @@ h1 {
   margin-bottom: 2.5em;
 }
 
-/* h2: section header (rare in this book). */
+/* h2: section header — left-aligned with decorative left bar. */
 h2 {
   margin-top: 2em;
   margin-bottom: 1.2em;
+  border-left: 4px solid #555;
+  padding-left: 0.8em;
+  text-align: left;
 }
 
 /* h3: story titles — clear separation between stories. */
@@ -53,6 +60,11 @@ h2 + p,
 h3 + p,
 h4 + p {
   text-indent: 0;
+}
+
+/* Consecutive paragraphs: small vertical breathing room. */
+p + p {
+  margin-top: 0.3em;
 }
 
 /* Images: block, centered, fit to screen. */
@@ -80,4 +92,80 @@ td, th {
 th {
   font-weight: bold;
   background-color: #eee;
+}
+
+/* --- Phase 5: Chinese publishing typography --- */
+
+/* Chapter sections: top + bottom decorative borders, centered title.
+   Pandoc emits `<div class="chapter">` from `::: {.chapter}` fenced divs. */
+.chapter {
+  border-top: 2px solid #333;
+  border-bottom: 1px solid #999;
+  padding: 1.5em 0;
+  margin-top: 2em;
+  margin-bottom: 2em;
+  text-align: center;
+}
+.chapter h1 {
+  margin-top: 0;
+}
+
+/* Dialogue paragraphs: left indent + thin left bar to set off spoken
+   lines from narration. Pandoc emits `<div class="dialogue">`. */
+.dialogue p {
+  margin-left: 1.5em;
+  border-left: 2px solid #ccc;
+  padding-left: 0.8em;
+  text-indent: 0;
+}
+
+/* Block quotes (引文块): left bar + light grey background. */
+blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 3px solid #888;
+  background-color: #f7f7f7;
+  color: #444;
+}
+blockquote p {
+  text-indent: 0;
+}
+
+/* Footnotes / annotations: smaller, grey. */
+.footnote {
+  font-size: 0.9em;
+  color: #666;
+  margin: 0.5em 0;
+  text-indent: 0;
+}
+
+/* Lists: standard indent, no first-line indent on items. */
+ul, ol {
+  margin: 0.5em 0 0.5em 2em;
+  padding: 0;
+}
+li {
+  margin: 0.2em 0;
+  text-indent: 0;
+}
+
+/* Image captions: italic em immediately after an img becomes a centered
+   small-text caption. Pandoc renders `![caption](path)` as
+   `<img>` + `<figcaption>` (or `<em>` in some templates); this rule
+   covers the `<em>` form. */
+img + em {
+  display: block;
+  text-align: center;
+  font-size: 0.9em;
+  color: #666;
+  margin-top: -0.5em;
+  text-indent: 0;
+}
+
+/* Horizontal rule: thin centered line (scene break convention). */
+hr {
+  border: none;
+  border-top: 1px solid #ccc;
+  margin: 2em auto;
+  width: 40%;
 }

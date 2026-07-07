@@ -7,6 +7,11 @@ them back into a single element on page[i], appending page[i+1]'s text.
 
 Rules for NOT merging (the next element starts a new block):
   * Either element is marked `dropped` (e.g. running head, page number).
+  * Either element is marked `low_confidence` — low-confidence fragments
+    must keep their original element ID so the AI review collector can
+    find them by `p{page}_e{order}` and apply corrections. Merging would
+    either drop the low-confidence element (losing the ID) or fold its
+    text into a normal-confidence element (losing the marker).
   * The next element's type is not `text` (titles, images, tables start
     a new block).
   * The current element ends with a sentence terminator: 。！？…"')]!?"
@@ -32,9 +37,9 @@ from pdf2book.config import PostprocessConfig
 from pdf2book.ocr.models import Element, PageResult
 
 # Sentence terminators that signal "paragraph ends here, do not merge".
-_TERMINATORS = frozenset("。！？；…\u3000\"')]!?\"")
+_TERMINATORS = frozenset("。！？；…\u3000\"')]!?")
 # Unicode left/right quotes that close a sentence.
-_QUOTE_CLOSE = frozenset("\u201d\u2019）」』】）")
+_QUOTE_CLOSE = frozenset("\u201d\u2019）」』】")
 
 # Patterns that signal "next element starts a new block, do not merge".
 _TITLE_PATTERNS = [
@@ -44,6 +49,16 @@ _TITLE_PATTERNS = [
 
 # Full-width space / indent signals a new paragraph.
 _INDENT_RE = re.compile(r"^[\s\u3000]+")
+
+# TOC entry ending: "标题／页码" or "标题/ 页码" (slash + digits at line end).
+# Used to detect TOC blocks that shouldn't merge with body paragraphs.
+_TOC_ENTRY_END_RE = re.compile(r"[/／]\s*\d+\s*$")
+
+
+def _has_toc_entries(text: str) -> bool:
+    """Check if text contains 2+ lines ending with TOC page numbers."""
+    lines = text.strip().split("\n")
+    return sum(1 for line in lines if _TOC_ENTRY_END_RE.search(line.strip())) >= 2
 
 
 def merge_paragraphs(pages: list[PageResult], cfg: PostprocessConfig) -> list[PageResult]:
@@ -81,8 +96,11 @@ def merge_paragraphs(pages: list[PageResult], cfg: PostprocessConfig) -> list[Pa
         page_idx, el = seq[i]
         if (
             page_idx != open_page
+            and not open_el.low_confidence
+            and not el.low_confidence
             and not _ends_with_terminator(open_el.text)
             and not _starts_new_block(el.text)
+            and not _has_toc_entries(open_el.text)
         ):
             open_el.text = _join(open_el.text, el.text)
             el.dropped = True

@@ -67,7 +67,8 @@ class PandocBuilder(EpubBuilder):
         # pypandoc alphabetizes inputs and book.md would precede meta.md,
         # putting the YAML metadata block after the body (Pandoc still
         # parses it, but meta-first is the idiomatic, robust order).
-        inputs = [str(meta_md), str(markdown)]
+        # Resolve to absolute paths: pypandoc._identify_path rejects relative.
+        inputs = [str(meta_md.resolve()), str(markdown.resolve())]
 
         args: list[str] = [
             "--standalone",
@@ -97,7 +98,7 @@ class PandocBuilder(EpubBuilder):
             outputfile=str(out),
             extra_args=args,
             sort_files=False,
-            cworkdir=str(work_dir),
+            cworkdir=str(work_dir.resolve()),
         )
         return out
 

@@ -1,6 +1,6 @@
 """CLI entry point for pdf2book.
 
-Three subcommands:
+Four subcommands:
 
   ``ocr`` — Stage 1: PDF -> OCR -> postprocess -> work_dir/book.md + meta.md
             Use this to generate a previewable Markdown; edit it, then run
@@ -11,11 +11,14 @@ Three subcommands:
 
   ``convert`` — One-shot: ``ocr`` + ``epub`` chained (backward compat).
 
+  ``batch`` — Batch convert a directory of PDFs to EPUBs in parallel.
+
 Usage::
 
     pdf2book ocr input.pdf [--resume] [--config config.yaml] [-v]
     pdf2book epub work_dir/book.md -o out.epub [--meta meta.md] [--cover c.jpg] [-v]
     pdf2book convert input.pdf -o out.epub [--resume] [--config config.yaml] [-v]
+    pdf2book batch input_dir/ -o output_dir/ [--workers N] [--backend X] [-v]
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from pathlib import Path
 
 import typer
 
+from pdf2book.batch import BatchProcessor
 from pdf2book.config import AppConfig
 from pdf2book.pipeline import ConversionPipeline
 from pdf2book.utils.logger import setup_logger
@@ -50,6 +54,15 @@ def ocr(
     pdf: Path = typer.Argument(..., help="Input scanned PDF path", exists=True),
     resume: bool = typer.Option(False, "--resume", help="Resume from cache (skip OCR'd pages)"),
     config: Path | None = typer.Option(None, "--config", help="Config YAML path"),
+    backend: str = typer.Option(
+        None, "--backend", help="OCR backend: paddle_pp | rapid_ocr | paddle_vl | cloud_ocr"
+    ),
+    ai_review: bool = typer.Option(
+        False,
+        "--ai-review",
+        help="Enable AI review (low-confidence correction + metadata extraction). "
+        "Configure api_url/api_key/model in config.yaml.",
+    ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable DEBUG logging"),
 ) -> None:
     """Stage 1: PDF -> OCR -> Markdown (previewable).
@@ -58,6 +71,10 @@ def ocr(
     the Markdown, then run ``pdf2book epub`` to build the EPUB.
     """
     cfg = AppConfig.load(config) if config else AppConfig.default()
+    if backend is not None:
+        cfg.ocr.backend = backend
+    if ai_review:
+        cfg.ai_review.enabled = True
     log = setup_logger("DEBUG" if verbose else "INFO")
 
     pipeline = ConversionPipeline(cfg, log)
@@ -70,9 +87,9 @@ def ocr(
 
 @app.command()
 def epub(
-    markdown: Path = typer.Argument(..., help="Input Markdown path (from `ocr` stage)", exists=True),
+    markdown: Path = typer.Argument(..., help="Markdown path (from `ocr` stage)", exists=True),
     output: Path = typer.Option(..., "-o", "--output", help="Output EPUB path"),
-    meta: Path | None = typer.Option(None, "--meta", help="Metadata YAML path (default: sibling meta.md)"),
+    meta: Path | None = typer.Option(None, "--meta", help="Metadata YAML (default: meta.md)"),
     cover: Path | None = typer.Option(None, "--cover", help="Cover image path", exists=True),
     css: Path | None = typer.Option(None, "--css", help="CSS stylesheet path", exists=True),
     config: Path | None = typer.Option(None, "--config", help="Config YAML path"),
@@ -99,7 +116,16 @@ def convert(
     output: Path = typer.Option(..., "-o", "--output", help="Output EPUB path"),
     resume: bool = typer.Option(False, "--resume", help="Resume from cache (skip OCR'd pages)"),
     config: Path | None = typer.Option(None, "--config", help="Config YAML path"),
+    backend: str = typer.Option(
+        None, "--backend", help="OCR backend: paddle_pp | rapid_ocr | paddle_vl | cloud_ocr"
+    ),
     cover: Path | None = typer.Option(None, "--cover", help="Cover image path", exists=True),
+    ai_review: bool = typer.Option(
+        False,
+        "--ai-review",
+        help="Enable AI review (low-confidence correction + metadata extraction). "
+        "Configure api_url/api_key/model in config.yaml.",
+    ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable DEBUG logging"),
 ) -> None:
     """One-shot: PDF -> OCR -> Markdown -> EPUB (``ocr`` + ``epub`` chained).
@@ -108,6 +134,10 @@ def convert(
     intermediate Markdown.
     """
     cfg = AppConfig.load(config) if config else AppConfig.default()
+    if backend is not None:
+        cfg.ocr.backend = backend
+    if ai_review:
+        cfg.ai_review.enabled = True
     log = setup_logger("DEBUG" if verbose else "INFO")
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -115,6 +145,58 @@ def convert(
     pipeline = ConversionPipeline(cfg, log)
     out = pipeline.run(pdf, output, resume=resume, cover=cover)
     typer.echo(f"Done: {out}")
+
+
+@app.command()
+def batch(
+    input_dir: Path = typer.Argument(
+        ..., help="Directory containing PDFs (scanned recursively)", exists=True
+    ),
+    output: Path = typer.Option(..., "-o", "--output", help="Output directory for EPUBs"),
+    workers: int = typer.Option(
+        1, "--workers", help="Parallel worker processes (memory scales linearly)"
+    ),
+    resume: bool = typer.Option(False, "--resume", help="Resume from cache (skip OCR'd pages)"),
+    config: Path | None = typer.Option(None, "--config", help="Config YAML path"),
+    backend: str = typer.Option(
+        None, "--backend", help="OCR backend: paddle_pp | rapid_ocr | paddle_vl | cloud_ocr"
+    ),
+    ai_review: bool = typer.Option(
+        False,
+        "--ai-review",
+        help="Enable AI review (low-confidence correction + metadata extraction). "
+        "Configure api_url/api_key/model in config.yaml.",
+    ),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable DEBUG logging"),
+) -> None:
+    """Batch convert all PDFs in a directory to EPUBs in parallel.
+
+    Each PDF gets an isolated ``work_dir/{stem}/`` subdirectory and SQLite
+    cache so concurrent workers don't contend. Output files are named
+    ``{pdf_stem}.epub``.
+
+    Memory note: each worker loads its own OCR model. RapidOCR ~50MB/worker
+    (high concurrency OK); PaddlePP ~1.5GB/worker (recommend --workers 1-2).
+    """
+    cfg = AppConfig.load(config) if config else AppConfig.default()
+    if backend is not None:
+        cfg.ocr.backend = backend
+    if ai_review:
+        cfg.ai_review.enabled = True
+    log = setup_logger("DEBUG" if verbose else "INFO")
+
+    pdf_paths = sorted(p for p in input_dir.rglob("*.pdf") if p.is_file())
+    if not pdf_paths:
+        typer.echo(f"No PDFs found in {input_dir}", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Found {len(pdf_paths)} PDF(s); converting with {workers} worker(s)...")
+    processor = BatchProcessor(cfg, max_workers=workers, log=log)
+    succeeded = processor.run(pdf_paths, output, resume=resume)
+
+    typer.echo(f"Done: {len(succeeded)}/{len(pdf_paths)} EPUB(s) generated in {output}")
+    if len(succeeded) < len(pdf_paths):
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

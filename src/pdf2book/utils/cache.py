@@ -30,26 +30,51 @@ def pdf_sha1(pdf_path: Path) -> str:
 
 
 def cfg_hash(cfg: OCRConfig) -> str:
-    """Hash OCR config + paddleocr version. Version bump invalidates cache."""
+    """Hash OCR config + engine version. Version bump invalidates cache.
+
+    The engine version is looked up per-backend so a RapidOCR upgrade
+    doesn't invalidate PaddlePP cache entries (and vice versa). Backends
+    without a local library (e.g. cloud_ocr) fall back to a static tag.
+    """
     payload = {
         "backend": cfg.backend,
         "dpi": cfg.dpi,
         "use_table_recognition": cfg.use_table_recognition,
         "use_formula_recognition": cfg.use_formula_recognition,
         "use_region_detection": cfg.use_region_detection,
-        "paddleocr_version": _paddleocr_version(),
+        "engine_version": _engine_version(cfg.backend),
     }
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
 
-def _paddleocr_version() -> str:
-    try:
-        import paddleocr  # type: ignore[import-not-found]
+def _engine_version(backend: str) -> str:
+    """Look up the OCR library version for a backend.
 
-        return getattr(paddleocr, "__version__", "unknown")
+    Returns "unknown" if the library isn't installed (e.g. optional
+    dependency not installed) — the cache key still differs by backend,
+    so a missing library doesn't collide with a present one across
+    backends, only within the same backend (which is fine: if the library
+    is missing, OCR fails before cache lookup).
+    """
+    if backend in ("paddle_pp", "paddle_vl"):
+        return _try_version("paddleocr")
+    if backend == "rapid_ocr":
+        return _try_version("rapidocr_onnxruntime")
+    if backend == "cloud_ocr":
+        # No local OCR library; the remote API version is opaque to us.
+        # Use a static tag so cloud cache entries are isolated from local
+        # backends and don't churn when httpx is upgraded.
+        return "cloud-v1"
+    return "unknown"
+
+
+def _try_version(module_name: str) -> str:
+    try:
+        mod = __import__(module_name)  # type: ignore[import-not-found]
     except ImportError:
         return "unknown"
+    return getattr(mod, "__version__", "unknown")
 
 
 class Cache:
@@ -69,7 +94,7 @@ class Cache:
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
 
-    def __enter__(self) -> "Cache":
+    def __enter__(self) -> Cache:
         self.open()
         return self
 
@@ -137,7 +162,8 @@ class Cache:
         self, pdf_hash: str, page_index: int, dpi: int, cfg_hash: str
     ) -> str | None:
         cur = self._require().execute(
-            "SELECT page_json FROM page_cache WHERE pdf_hash=? AND page_index=? AND dpi=? AND cfg_hash=?",
+            "SELECT page_json FROM page_cache "
+            "WHERE pdf_hash=? AND page_index=? AND dpi=? AND cfg_hash=?",
             (pdf_hash, page_index, dpi, cfg_hash),
         )
         row = cur.fetchone()

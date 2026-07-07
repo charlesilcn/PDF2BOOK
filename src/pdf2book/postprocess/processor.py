@@ -1,12 +1,14 @@
 """Post-processing orchestrator (T11).
 
-Chains the four post-process stages in the fixed order documented in
+Chains the six post-process stages in the fixed order documented in
 `postprocess/__init__.py`:
 
-  1. header_footer.remove   — drop headers/footers + page numbers + running heads
-  2. merger.merge_paragraphs — stitch cross-page paragraphs
-  3. structure.infer_title_levels — assign H1/H2/H3 from literary rules
-  4. images.extract_images   — copy cropped images into work_dir/images/
+  0. typography.normalize_punctuation — CJK punctuation cleanup
+  1. confidence_filter.filter_by_confidence — drop low-confidence text elements
+  2. header_footer.remove   — drop headers/footers + page numbers + running heads
+  3. merger.merge_paragraphs — stitch cross-page paragraphs
+  4. structure.infer_title_levels — assign H1/H2/H3 from literary rules
+  5. images.extract_images   — copy cropped images into work_dir/images/
 
 Then `to_markdown` assembles the final `book.md`. All stages mutate
 PageResult/Element in place and return the same list for chaining.
@@ -18,7 +20,14 @@ from pathlib import Path
 
 from pdf2book.config import AppConfig
 from pdf2book.ocr.models import PageResult
-from pdf2book.postprocess import header_footer, images, merger, structure
+from pdf2book.postprocess import (
+    confidence_filter,
+    header_footer,
+    images,
+    merger,
+    structure,
+    typography,
+)
 
 
 class PostProcessor:
@@ -31,14 +40,19 @@ class PostProcessor:
     def run(
         self, pages: list[PageResult], meta: dict | None = None
     ) -> list[PageResult]:
-        """Execute the four post-process stages in order. Returns `pages`.
+        """Execute the six post-process stages in order. Returns `pages`.
 
         Each stage is gated by its config flag so users can disable it
-        (e.g. `merge_cross_page: false`).
+        (e.g. `merge_cross_page: false`). Confidence filtering is gated by
+        `min_confidence > 0.0` (0.0 disables).
         """
         if not pages:
             return pages
 
+        if self._cfg.normalize_punctuation:
+            typography.normalize_punctuation(pages, self._cfg)
+        if self._cfg.min_confidence > 0.0:
+            confidence_filter.filter_by_confidence(pages, self._cfg)
         if self._cfg.drop_header_footer:
             header_footer.remove(pages, self._cfg)
         if self._cfg.merge_cross_page:

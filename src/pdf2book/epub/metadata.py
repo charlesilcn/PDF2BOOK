@@ -25,6 +25,7 @@ class BookMetadata(BaseModel):
     author: str = "Unknown"
     lang: str = "zh-CN"
     date: str | None = None
+    publisher: str | None = None
     rights: str | None = None
     toc_depth: int = 2
     chapter_level: int = 1
@@ -32,7 +33,7 @@ class BookMetadata(BaseModel):
     @classmethod
     def from_pdf_meta(
         cls, pdf_meta: dict, epub_cfg: EpubConfig | None = None
-    ) -> "BookMetadata":
+    ) -> BookMetadata:
         """Build metadata from PyMuPDF's `doc.metadata` dict + EpubConfig.
 
         PyMuPDF keys: `title`, `author`, `subject`, `keywords`, `creator`,
@@ -91,6 +92,8 @@ def write_meta_yaml(meta: BookMetadata, work_dir: Path) -> Path:
     }
     if meta.date:
         payload["date"] = meta.date
+    if meta.publisher:
+        payload["publisher"] = meta.publisher
     if meta.rights:
         payload["rights"] = meta.rights
 

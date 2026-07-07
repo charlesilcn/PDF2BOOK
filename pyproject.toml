@@ -24,6 +24,15 @@ ocr = [
     "paddlepaddle==3.0.0",
     "paddleocr[doc-parser]==3.7.0",
 ]
+rapid = [
+    "rapidocr-onnxruntime>=1.3",
+    "onnxruntime>=1.16",
+    # Pillow is needed by RapidOCRBackend._image_size to read page dimensions.
+    "pillow>=10",
+]
+cloud = [
+    "httpx>=0.27",
+]
 dev = [
     "pytest>=8",
     "pytest-cov",
