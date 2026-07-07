@@ -47,6 +47,16 @@ _TITLE_PATTERNS = [
     re.compile(r"^Chapter\s+[IVX0-9]+", re.IGNORECASE),
 ]
 
+# CIP (图书在版编目) data block — starts on its own line on the copyright page.
+# The header "图书在版编目(CIP)数据" and the structured data line that follows
+# (title／author．place：publisher，date) must NOT merge into the previous
+# page's trailing text, or CIP extraction fails because the data line gets
+# marked dropped. Matches both half-width (/) and full-width (／) slashes.
+_CIP_HEADER_RE = re.compile(r"^图书在版编目\s*[（(]CIP[)）]\s*数据")
+_CIP_LINE_RE = re.compile(
+    r"^.+?[/／].+?[．.·一。].+?[：:].+?[，,]\s*\d{4}"
+)
+
 # Full-width space / indent signals a new paragraph.
 _INDENT_RE = re.compile(r"^[\s\u3000]+")
 
@@ -127,7 +137,13 @@ def _starts_new_block(text: str) -> bool:
         return True
     if _INDENT_RE.match(text):
         return True
-    return any(p.match(stripped) for p in _TITLE_PATTERNS)
+    if any(p.match(stripped) for p in _TITLE_PATTERNS):
+        return True
+    # CIP header and data line always start a new block — merging them into
+    # the previous page's trailing text destroys the copyright metadata.
+    if _CIP_HEADER_RE.match(stripped) or _CIP_LINE_RE.match(stripped):
+        return True
+    return False
 
 
 def _join(a: str, b: str) -> str:

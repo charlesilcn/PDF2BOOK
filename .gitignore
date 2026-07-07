@@ -38,8 +38,9 @@ test_config.yaml
 .DS_Store
 Thumbs.db
 
-# Trae agent workspace
-.trae/
+# Trae agent workspace (keep skills/, exclude the rest)
+.trae/*
+!.trae/skills/
 .trae-html-share-packages/
 
 # Sensitive files

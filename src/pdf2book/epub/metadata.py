@@ -13,12 +13,38 @@ from pdf2book.config import EpubConfig
 from pdf2book.epub.templates import default_css_path
 
 
+class BookStructureEntry(BaseModel):
+    """Single page structure entry recording its classified type and render mode."""
+
+    page_index: int
+    # cover/frontispiece/copyright/toc/preface/body/illustration/back_cover/...
+    page_type: str
+    rendered_as: str  # "image" or "text"
+
+
+class BookStructure(BaseModel):
+    """Book page structure summary for AI verification.
+
+    Records the detected page ordering so AI can validate correctness (e.g.
+    flag a copyright page appearing at the end instead of the front matter).
+    """
+
+    order: list[str] = []  # ordered list of distinct page types detected
+    pages: list[BookStructureEntry] = []
+    missing: list[str] = []  # expected but absent page types
+    anomalies: list[str] = []  # detected anomalies (e.g. "copyright_at_end")
+    ai_verified: bool = False
+    ai_notes: str | None = None
+
+
 class BookMetadata(BaseModel):
     """Metadata embedded into the EPUB via a Pandoc YAML metadata block.
 
     Fields map to Pandoc's metadata variables (`title`, `author`, `lang`,
     `date`, `rights`). `toc_depth` and `chapter_level` are consumed by
     `PandocBuilder` to set `--toc-depth` and `--epub-chapter-level`.
+    `book_structure` records the detected page layout for AI verification
+    and is ignored by Pandoc (unknown metadata key).
     """
 
     title: str = "Untitled"
@@ -29,6 +55,7 @@ class BookMetadata(BaseModel):
     rights: str | None = None
     toc_depth: int = 2
     chapter_level: int = 1
+    book_structure: BookStructure | None = None
 
     @classmethod
     def from_pdf_meta(
@@ -96,6 +123,8 @@ def write_meta_yaml(meta: BookMetadata, work_dir: Path) -> Path:
         payload["publisher"] = meta.publisher
     if meta.rights:
         payload["rights"] = meta.rights
+    if meta.book_structure is not None:
+        payload["book_structure"] = meta.book_structure.model_dump()
 
     # `default_flow_style=False` produces block-style YAML (one key per line),
     # which is the most Pandoc-compatible and human-readable form.
@@ -108,6 +137,8 @@ def write_meta_yaml(meta: BookMetadata, work_dir: Path) -> Path:
 
 __all__ = [
     "BookMetadata",
+    "BookStructure",
+    "BookStructureEntry",
     "read_meta_yaml",
     "write_meta_yaml",
     "default_css_path",

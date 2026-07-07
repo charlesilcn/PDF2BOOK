@@ -66,6 +66,26 @@ class PostprocessConfig(BaseModel):
             r"第[一二三四五六七八九十百千0-9]+节",
         ]
     )
+    # Front matter / back matter patterns (前言, 序, 后记, 附录, etc.).
+    # These are NEVER H1 — they're structural sections, not chapters.
+    # `_enforce_monotonic` won't demote them below H2, preventing them
+    # from stealing the ch-1 anchor from the first real chapter.
+    front_matter_patterns: list[str] = Field(
+        default_factory=lambda: [
+            r"前言",
+            r"序言",
+            r"序$",
+            r"后记",
+            r"附录",
+            r"绪论",
+            r"引言",
+            r"跋",
+            r"结语",
+            r"参考文献",
+            r"目录",
+            r"CONTENTS",
+        ]
+    )
     # Three-tier confidence marking (Phase 4 refactor). Replaces the former
     # binary `min_confidence` drop-or-keep behavior with a graded scheme:
     #   score < noise_confidence            + (empty or single-char)  -> dropped
@@ -115,7 +135,11 @@ class AIReviewConfig(BaseModel):
     api_url: str = ""
     api_key: str = ""
     model: str = "gpt-4o-mini"
-    max_tokens: int = 4096
+    # 8192 accommodates large books with many title/low-confidence fixes.
+    # 4096 was found to truncate mid-JSON on books with ~25+ too_short
+    # titles, causing _parse_json_lenient to return a partial list instead
+    # of the expected dict, silently skipping all corrections.
+    max_tokens: int = 8192
     # Constraint-validation retry loop: if AI correction violates constraints
     # (edit distance, char count, preserved chars), the violation is fed back
     # to the AI for a retry. After `max_retries` failures the original text

@@ -1,58 +1,37 @@
-"""AI client for the review pipeline — OpenAI-compatible chat completions.
+"""AI client for the Markdown-based review pipeline.
 
-This module wraps httpx calls to an OpenAI-compatible `/v1/chat/completions`
-endpoint and adds the constraint-validation retry loop for low-confidence
-OCR correction.
+Wraps httpx calls to an OpenAI-compatible ``/v1/chat/completions`` endpoint.
+The review flow is:
 
-Design:
-  * `AIClient.complete(prompt)` — single chat completion, returns raw text.
-  * `AIClient.complete_json(prompt)` — completion + lenient JSON parsing
-    (strips Markdown code fences, extracts the first JSON object/array).
-  * `AIClient.review_low_confidence(items)` — batch review with per-item
-    constraint validation retry. Violations trigger a focused retry prompt
-    containing the violation reason; after `max_retries` failures the item
-    is marked `[需校对]` for manual review.
+  1. ``collect_markdown_issues`` (in ``markdown_review.py``) scans the
+     generated ``book.md`` for low-confidence blocks, chapter titles with
+     issues, and current metadata.
+  2. ``build_review_prompt`` builds a single comprehensive prompt.
+  3. ``AIClient.review_markdown`` calls the API and applies corrections
+     back to ``book.md`` and ``meta.md``.
 
-When `cfg.enabled=False` the client short-circuits every call to return
-empty results — the pipeline still runs, just without AI review. This lets
-users without an API key exercise the rest of the pipeline.
+When ``cfg.enabled=False`` the client short-circuits every call to return
+empty results — the pipeline still runs, just without AI review.
 
 The client is HTTP-only (no SDK dependency) so it works with any
-OpenAI-compatible endpoint: OpenAI, Azure, Anthropic-via-proxy, vLLM, Ollama,
-LocalAI, etc.
+OpenAI-compatible endpoint: OpenAI, Azure, Anthropic-via-proxy, vLLM,
+Ollama, LocalAI, etc.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
 
 from pdf2book.config import AIReviewConfig
-from pdf2book.review.constraints import extract_constraints, validate_correction
-from pdf2book.review.prompt_builder import (
-    build_low_confidence_prompt,
-    build_metadata_prompt,
-    build_page_type_prompt,
-    build_title_prompt,
-)
+from pdf2book.epub.metadata import BookMetadata
+from pdf2book.utils.logger import get_logger
 
-
-@dataclass
-class ReviewResult:
-    """Container for the four AI review task outputs.
-
-    Each field is the parsed JSON response from the corresponding prompt.
-    Empty list/dict when the task had no input items or AI is disabled.
-    """
-
-    metadata: dict
-    low_confidence: list[dict]
-    titles: list[dict]
-    page_types: list[dict]
+_log = get_logger()
 
 
 class AIClient:
@@ -79,9 +58,9 @@ class AIClient:
     def complete(self, prompt: str) -> str:
         """Send a chat completion request, return the assistant's text.
 
-        Returns empty string when `cfg.enabled=False` (no network call).
-        Raises `httpx.HTTPError` on network/server failure — callers should
-        catch and degrade gracefully (e.g. mark all items [需校对]).
+        Returns empty string when ``cfg.enabled=False`` (no network call).
+        Raises ``httpx.HTTPError`` on network/server failure — callers
+        should catch and degrade gracefully.
         """
         if not self.cfg.enabled:
             return ""
@@ -105,201 +84,102 @@ class AIClient:
         choices = data.get("choices") or []
         if not choices:
             return ""
-        return choices[0].get("message", {}).get("content", "") or ""
+        choice = choices[0]
+        content = choice.get("message", {}).get("content", "") or ""
+        # Detect truncation: if finish_reason is "length", the output was
+        # cut off by max_tokens. Log a warning so the user knows to bump
+        # max_tokens or shrink the prompt.
+        finish_reason = choice.get("finish_reason")
+        if finish_reason == "length":
+            _log.warning(
+                "AI response truncated (finish_reason=length, "
+                "max_tokens=%d). Consider increasing ai_review.max_tokens "
+                "or reducing prompt size.",
+                self.cfg.max_tokens,
+            )
+        return content
 
     def complete_json(self, prompt: str) -> Any:
         """Complete + parse JSON from the response.
 
-        Uses `_parse_json_lenient` which handles Markdown code fences and
+        Uses ``_parse_json_lenient`` which handles Markdown code fences and
         extracts the first JSON object/array from surrounding prose. Returns
-        `None` if no JSON could be parsed (caller should treat as failure).
+        ``None`` if no JSON could be parsed (caller should treat as failure).
         """
         text = self.complete(prompt)
         if not text:
             return None
         return _parse_json_lenient(text)
 
-    def review_low_confidence(self, items: list[dict]) -> list[dict]:
-        """Review low-confidence OCR items with constraint validation retry.
-
-        Args:
-            items: List of low-confidence item dicts (from collect_review_items).
-
-        Returns:
-            List of {"id": str, "corrected": str, "confidence": float, "status": str}.
-            `status` is one of:
-              - "corrected": passed validation, `corrected` is the AI's text.
-              - "unclear": AI returned [UNCLEAR], `corrected` is "[UNCLEAR]".
-              - "manual": failed validation after max_retries, `corrected`
-                is the original text with "[需校对]" suffix.
-              - "skipped": AI disabled or empty input, `corrected` is original.
-        """
-        if not self.cfg.enabled or not items:
-            return [
-                {
-                    "id": item["id"],
-                    "corrected": item["original_text"],
-                    "confidence": 0.0,
-                    "status": "skipped",
-                }
-                for item in items
-            ]
-
-        # Batch call: send all items in one prompt.
-        prompt = build_low_confidence_prompt(items)
-        raw = self.complete_json(prompt)
-
-        # Parse response into a list of {id, corrected, confidence}.
-        corrections = _normalize_low_confidence_response(raw, items)
-
-        # Validate each correction; retry failures individually.
-        results: list[dict] = []
-        for item, correction in zip(items, corrections):
-            original = item["original_text"]
-            corrected = correction.get("corrected", "").strip()
-            constraints = extract_constraints(
-                original,
-                item.get("context_before", ""),
-                item.get("context_after", ""),
-            )
-
-            # [UNCLEAR] → mark unclear, no retry.
-            if "[UNCLEAR]" in corrected:
-                results.append(
-                    {
-                        "id": item["id"],
-                        "corrected": "[UNCLEAR]",
-                        "confidence": correction.get("confidence", 0.0),
-                        "status": "unclear",
-                    }
-                )
-                continue
-
-            # Validate.
-            is_valid, reason = validate_correction(original, corrected, constraints)
-            if is_valid:
-                results.append(
-                    {
-                        "id": item["id"],
-                        "corrected": corrected,
-                        "confidence": correction.get("confidence", 0.0),
-                        "status": "corrected",
-                    }
-                )
-                continue
-
-            # Retry with feedback (per-item, focused prompt).
-            final_corrected = corrected
-            for _ in range(self.cfg.max_retries):
-                retry_prompt = _build_retry_prompt(item, final_corrected, reason)
-                retry_raw = self.complete_json(retry_prompt)
-                if retry_raw is None:
-                    break
-                retry_correction = _normalize_low_confidence_response(
-                    retry_raw, [item]
-                )
-                if not retry_correction:
-                    break
-                final_corrected = retry_correction[0].get("corrected", "").strip()
-
-                if "[UNCLEAR]" in final_corrected:
-                    break  # AI gave up; stop retrying.
-
-                is_valid, reason = validate_correction(
-                    original, final_corrected, constraints
-                )
-                if is_valid:
-                    break
-
-            if "[UNCLEAR]" in final_corrected:
-                results.append(
-                    {
-                        "id": item["id"],
-                        "corrected": "[UNCLEAR]",
-                        "confidence": 0.0,
-                        "status": "unclear",
-                    }
-                )
-            elif is_valid:
-                results.append(
-                    {
-                        "id": item["id"],
-                        "corrected": final_corrected,
-                        "confidence": 0.5,  # passed on retry, lower confidence
-                        "status": "corrected",
-                    }
-                )
-            else:
-                # Failed all retries → mark for manual review.
-                results.append(
-                    {
-                        "id": item["id"],
-                        "corrected": f"{original}[需校对]",
-                        "confidence": 0.0,
-                        "status": "manual",
-                    }
-                )
-
-        return results
-
-    def review_all(
+    def review_markdown(
         self,
-        review_items: dict,
-    ) -> ReviewResult:
-        """Run all four review tasks and return combined results.
+        md_path: Path,
+        meta_path: Path,
+        meta: BookMetadata,
+    ) -> BookMetadata:
+        """Review and correct ``book.md`` after markdown generation.
 
-        This is the main entry point called by the pipeline. It dispatches
-        to the appropriate prompt builder + complete_json for each task.
-        Low-confidence correction goes through `review_low_confidence` for
-        constraint validation retry; the other three tasks are single-shot.
+        Flow:
+          1. ``collect_markdown_issues(md_path, meta)`` → issues dict
+          2. ``build_review_prompt(issues)`` → prompt string
+          3. ``complete_json(prompt)`` → corrections dict
+          4. ``apply_markdown_corrections(...)`` → updated BookMetadata
+
+        Returns the updated BookMetadata. On AI disabled or failure, returns
+        the original meta unchanged (``book.md`` keeps its low-confidence
+        markers for manual proofreading).
         """
         if not self.cfg.enabled:
-            return ReviewResult(
-                metadata={},
-                low_confidence=[],
-                titles=[],
-                page_types=[],
-            )
+            return meta
 
-        # Task 1: Metadata extraction (skip API call when no candidates).
-        meta_candidates = review_items.get("metadata", {}).get("candidates", [])
-        metadata: dict = {}
-        if meta_candidates:
-            meta_prompt = build_metadata_prompt(
-                review_items.get("metadata", {}).get("current", {}),
-                meta_candidates,
-            )
-            meta_raw = self.complete_json(meta_prompt)
-            metadata = meta_raw if isinstance(meta_raw, dict) else {}
-
-        # Task 2: Low-confidence correction (with retry). review_low_confidence
-        # handles the empty-items short-circuit internally.
-        low_conf_results = self.review_low_confidence(
-            review_items.get("low_confidence_texts", [])
+        from pdf2book.review.markdown_review import (
+            apply_markdown_corrections,
+            build_review_prompt,
+            collect_markdown_issues,
         )
 
-        # Task 3: Title level confirmation (skip API call when no titles).
-        title_candidates = review_items.get("title_candidates", [])
-        titles: list[dict] = []
-        if title_candidates:
-            title_prompt = build_title_prompt(title_candidates)
-            title_raw = self.complete_json(title_prompt)
-            titles = title_raw if isinstance(title_raw, list) else []
+        issues = collect_markdown_issues(md_path, meta)
+        prompt = build_review_prompt(issues)
+        corrections = self.complete_json(prompt)
 
-        # Task 4: Page type confirmation (skip API call when no candidates).
-        page_type_candidates = review_items.get("page_type_candidates", [])
-        page_types: list[dict] = []
-        if page_type_candidates:
-            page_prompt = build_page_type_prompt(page_type_candidates)
-            page_raw = self.complete_json(page_prompt)
-            page_types = page_raw if isinstance(page_raw, list) else []
+        if not isinstance(corrections, dict):
+            # AI returned no usable JSON (or returned a non-dict type,
+            # which happens when the response is truncated mid-array and
+            # _parse_json_lenient salvages an inner array). Log details
+            # so the user can diagnose (usually: increase max_tokens).
+            corrections_type = type(corrections).__name__ if corrections is not None else "None"
+            n_titles = len(issues.get("title_candidates", []))
+            n_lc = len(issues.get("low_confidence_texts", []))
+            _log.warning(
+                "AI review returned %s (expected dict). Prompt had "
+                "%d titles + %d low-confidence texts. "
+                "Try increasing ai_review.max_tokens.",
+                corrections_type,
+                n_titles,
+                n_lc,
+            )
+            return meta
 
-        return ReviewResult(
-            metadata=metadata,
-            low_confidence=low_conf_results,
-            titles=titles,
-            page_types=page_types,
+        n_fixes = (
+            len(corrections.get("low_confidence_fixes", []))
+            + len(corrections.get("title_fixes", []))
+            + len(corrections.get("paragraph_fixes", []))
+            + len(corrections.get("chapter_fixes", []))
         )
+        _log.info(
+            "AI review applied: %d fixes (titles=%d, low_conf=%d, "
+            "paragraph=%d, chapter=%d)",
+            n_fixes,
+            len(corrections.get("title_fixes", [])),
+            len(corrections.get("low_confidence_fixes", [])),
+            len(corrections.get("paragraph_fixes", [])),
+            len(corrections.get("chapter_fixes", [])),
+        )
+
+        updated_meta = apply_markdown_corrections(
+            md_path, meta_path, corrections, issues
+        )
+        return updated_meta
 
     def close(self) -> None:
         """Close the underlying httpx client. Safe to call multiple times."""
@@ -332,12 +212,23 @@ def _parse_json_lenient(text: str) -> Any:
     """Parse JSON from LLM output, tolerating Markdown fences and prose.
 
     Strategy:
-      1. Strip ```json ... ``` code fences if present.
-      2. Try `json.loads` on the stripped text.
-      3. If that fails, find the first `{` ... `}` or `[` ... `]` span
-         and try parsing that.
+      1. Strip ```` ```json ... ``` ```` code fences if present.
+      2. Try ``json.loads`` on the stripped text.
+      3. If that fails, find the first ``{`` ... ``}`` or ``[`` ... ``]``
+         span and try parsing that.
+      4. If that fails too (likely because the response was truncated by
+         ``max_tokens`` mid-JSON), attempt to repair the truncated JSON
+         by closing open ``{`` / ``[`` structures and retry parsing.
 
-    Returns None if no JSON could be extracted.
+    Returns ``None`` if no JSON could be extracted.
+
+    Note: when the response is truncated, this function prefers to
+    salvage a partial dict over a complete inner array. Callers like
+    ``review_markdown`` check ``isinstance(corrections, dict)`` and
+    skip applying corrections otherwise, so returning a partial dict
+    with whatever fixes the AI managed to emit is strictly better than
+    returning an inner array (which would cause all corrections to be
+    silently dropped).
     """
     if not text:
         return None
@@ -356,142 +247,104 @@ def _parse_json_lenient(text: str) -> Any:
         pass
 
     # Step 3: extract first JSON object or array.
-    # Find the first { or [ and try to parse from there.
-    for start_char, end_char in (("{", "}"), ("[", "]")):
-        start = text.find(start_char)
-        if start < 0:
-            continue
-        # Find the matching end by scanning from the end (lenient — doesn't
-        # handle nested strings with braces, but works for well-formed JSON
-        # that the LLM wraps in prose).
-        end = text.rfind(end_char)
-        if end <= start:
-            continue
-        try:
-            return json.loads(text[start : end + 1])
-        except json.JSONDecodeError:
-            continue
+    # Prefer object over array — review responses are always objects.
+    # Use a stack-based scan to find the matching close brace instead
+    # of naively taking the last `}` (which fails on truncated JSON
+    # where the last `}` belongs to a nested object).
+    obj_start = text.find("{")
+    arr_start = text.find("[")
+
+    # Try object first if it appears before array (or array doesn't exist).
+    if obj_start >= 0 and (arr_start < 0 or obj_start <= arr_start):
+        repaired = _repair_truncated_json(text, obj_start, "{")
+        if repaired is not None:
+            try:
+                return json.loads(repaired)
+            except json.JSONDecodeError:
+                pass
+
+    # Then try array.
+    if arr_start >= 0:
+        repaired = _repair_truncated_json(text, arr_start, "[")
+        if repaired is not None:
+            try:
+                return json.loads(repaired)
+            except json.JSONDecodeError:
+                pass
 
     return None
 
 
-def _normalize_low_confidence_response(
-    raw: Any,
-    items: list[dict],
-) -> list[dict]:
-    """Normalize AI response into a list of {id, corrected, confidence}.
+def _repair_truncated_json(text: str, start: int, open_char: str) -> str | None:
+    """Repair a possibly-truncated JSON object/array starting at ``start``.
 
-    Handles three response shapes:
-      1. List of dicts: [{"id": ..., "corrected": ..., "confidence": ...}]
-      2. Dict with "items" key: {"items": [...]}
-      3. Single dict (one item): {"id": ..., "corrected": ...}
+    Scans from ``start`` tracking string state and bracket nesting depth.
+    If the JSON is well-formed (all brackets closed), returns the slice
+    ``text[start:end+1]``. If truncated (open brackets remain), strips
+    any trailing partial entry (e.g. ``"key": "value`` without closing
+    quote) and closes the open structures in reverse order.
 
-    Falls back to matching by index if "id" is missing in the response.
-    Returns one entry per input item, defaulting to original text if missing.
+    Returns ``None`` only if no matching close char is found at all
+    (e.g. the open char is the only one in the text).
     """
-    if raw is None:
-        return [
-            {"id": item["id"], "corrected": item["original_text"], "confidence": 0.0}
-            for item in items
-        ]
+    in_string = False
+    escape = False
+    stack: list[str] = []
+    # Snapshot of (position, stack) at the last "complete" point —
+    # i.e. right after a `}` or `]` successfully closed a structure.
+    # When the JSON is truncated mid-value, we roll back to this point
+    # and close only the structures that were open here. Closing the
+    # current (incomplete) stack would add extra brackets that don't
+    # correspond to any open char in the truncated text.
+    last_complete_pos = start
+    last_complete_stack: list[str] = []
+    well_formed_end: int | None = None
 
-    # Normalize to a list of dicts.
-    if isinstance(raw, dict):
-        if "items" in raw and isinstance(raw["items"], list):
-            entries = raw["items"]
-        elif "id" in raw or "corrected" in raw:
-            entries = [raw]
-        else:
-            entries = []
-    elif isinstance(raw, list):
-        entries = raw
-    else:
-        entries = []
-
-    # Build a lookup by id, falling back to index.
-    by_id: dict[str, dict] = {}
-    for i, entry in enumerate(entries):
-        if not isinstance(entry, dict):
+    for i in range(start, len(text)):
+        ch = text[i]
+        if escape:
+            escape = False
             continue
-        eid = entry.get("id")
-        if eid is None and i < len(items):
-            eid = items[i]["id"]
-        if eid is not None:
-            by_id[eid] = entry
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            stack.append("}")
+        elif ch == "[":
+            stack.append("]")
+        elif ch == "}" or ch == "]":
+            if stack and stack[-1] == ch:
+                stack.pop()
+                last_complete_pos = i + 1
+                last_complete_stack = list(stack)
+                if not stack:
+                    well_formed_end = i
+                    break
 
-    # Produce one result per input item.
-    results: list[dict] = []
-    for item in items:
-        entry = by_id.get(item["id"])
-        if entry is None:
-            results.append(
-                {
-                    "id": item["id"],
-                    "corrected": item["original_text"],
-                    "confidence": 0.0,
-                }
-            )
-        else:
-            results.append(
-                {
-                    "id": item["id"],
-                    "corrected": entry.get("corrected", item["original_text"]),
-                    "confidence": entry.get("confidence", 0.0),
-                }
-            )
-    return results
+    if well_formed_end is not None:
+        return text[start : well_formed_end + 1]
 
+    if last_complete_pos == start:
+        # No complete sub-structure found at all — too broken to repair.
+        return None
 
-def _build_retry_prompt(
-    item: dict,
-    failed_correction: str,
-    violation_reason: str,
-) -> str:
-    """Build a focused retry prompt for a single failed correction.
-
-    Tells the AI what it got wrong and asks for a corrected attempt that
-    respects the constraints. This is per-item (not batch) to focus the
-    model's attention.
-    """
-    from textwrap import dedent
-
-    return dedent(
-        f"""\
-        ## 重试任务：低置信度 OCR 校对
-
-        你之前的修正被约束验证拒绝了。请重新校对。
-
-        ## 原始 OCR 文本
-        {item["original_text"]}
-
-        ## 上下文
-        前：{item.get("context_before", "")}
-        后：{item.get("context_after", "")}
-
-        ## 约束（必须满足）
-        - max_length: {item["constraints"]["max_length"]}
-        - preserved_chars: {item["constraints"]["preserved_chars"]}
-        - max_edit_distance: {item["constraints"]["max_edit_distance"]}
-
-        ## 你之前的修正（被拒绝）
-        {failed_correction}
-
-        ## 拒绝原因
-        {violation_reason}
-
-        ## 要求
-        请返回一个满足所有约束的修正。只输出 JSON：
-        {{"corrected": str, "confidence": float}}
-
-        若无法满足约束或不确定，返回：
-        {{"corrected": "[UNCLEAR]", "confidence": 0.0}}
-        """
-    )
+    # Truncated: roll back to last complete position and close the
+    # structures that were open at that point (NOT the current stack,
+    # which includes brackets opened by the truncated partial entry).
+    truncated = text[start:last_complete_pos].rstrip()
+    while truncated.endswith(","):
+        truncated = truncated[:-1].rstrip()
+    for close in reversed(last_complete_stack):
+        truncated += close
+    return truncated
 
 
 __all__ = [
     "AIClient",
-    "ReviewResult",
     "_parse_json_lenient",
-    "_normalize_low_confidence_response",
 ]

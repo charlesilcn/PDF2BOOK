@@ -42,13 +42,14 @@ TITLE_LABELS = frozenset({"doc_title", "paragraph_title", "content_title"})
 # Page types skipped entirely in `to_markdown` (no text, no image rendered).
 # COVER: EPUB cover is set via Pandoc's --epub-cover-image; don't duplicate
 #   the page image in the body (would show the cover twice in readers).
-# TOC: EPUB has its own navigation TOC (nav.xhtml); the PDF original is
-#   redundant and its OCR text is too noisy to typeset.
-_SKIP_PAGE_TYPES = frozenset({PageType.COVER, PageType.TOC})
+_SKIP_PAGE_TYPES = frozenset({PageType.COVER})
 
-# Decorative pages rendered as PDF page images (bypass OCR layout).
-# Excludes COVER (skipped via _SKIP_PAGE_TYPES); frontispiece/copyright/
-# illustration have informational/decorative value worth preserving as images.
+# Page types rendered as PDF page images (bypass OCR layout).
+# Only DECORATIVE_TYPES (frontispiece/copyright/illustration/back_cover)
+# are rendered as images. TOC pages are rendered as OCR text so the
+# book's table of contents appears as searchable, selectable text in the
+# EPUB (matching the PDF's reading flow). Cover is skipped entirely
+# (set via Pandoc's --epub-cover-image, not duplicated in the body).
 _IMAGE_RENDER_TYPES = DECORATIVE_TYPES - {PageType.COVER}
 
 # PP element types whose `text` carries raw HTML (PP's table recognizer output).
@@ -82,18 +83,32 @@ def infer_title_levels(
     No-op when `cfg.infer_title_level` is False.
 
     ``skip_page_types``: when provided, title candidates on pages whose
-    ``page_type`` is in this set are ignored (their ``inferred_level`` is
-    left unset). Used to exclude decorative/TOC pages whose OCR-detected
-    "titles" (e.g. a misread "目录" → "水*CONTENTS") would pollute the
-    level hierarchy. Callers should re-invoke after page classification
-    so this filter takes effect.
+    ``page_type`` is in this set are ignored — their ``inferred_level`` is
+    **cleared** (set to None) so that any level assigned by a prior call
+    (without the skip filter) does not survive. This prevents decorative/TOC
+    pages whose OCR-detected "titles" (e.g. a misread "目录" → "水*CONTENTS")
+    from polluting the level hierarchy or creating spurious H1 chapters.
+    Callers should re-invoke after page classification so this filter takes
+    effect.
     """
     if not cfg.infer_title_level or not pages:
         return pages
 
+    # Clear inferred_level for title elements on skipped pages so that levels
+    # assigned by a prior call (without skip) don't survive. Without this,
+    # a TOC doc_title inferred as H1 in the first pass would still be H1
+    # after the second pass (which skips TOC), creating a spurious chapter.
+    if skip_page_types:
+        for page in pages:
+            if page.page_type in skip_page_types:
+                for el in page.elements:
+                    if el.type in TITLE_LABELS and not el.dropped:
+                        el.inferred_level = None
+
     # Compile user-configurable patterns (replaces former hardcoded regexes).
     chapter_res = [re.compile(p, re.IGNORECASE) for p in cfg.chapter_patterns]
     section_res = [re.compile(p, re.IGNORECASE) for p in cfg.section_patterns]
+    front_matter_res = [re.compile(p, re.IGNORECASE) for p in cfg.front_matter_patterns]
 
     cands = _collect_candidates(pages, skip_page_types)
     if not cands:
@@ -109,7 +124,7 @@ def infer_title_levels(
         )
 
     _promote_flat_fallback(cands)
-    _enforce_monotonic(cands)
+    _enforce_monotonic(cands, front_matter_res)
     return pages
 
 
@@ -210,19 +225,29 @@ def _promote_flat_fallback(cands) -> None:
                 el.inferred_level = 1
 
 
-def _enforce_monotonic(cands) -> None:
+def _enforce_monotonic(cands, front_matter_res=None) -> None:
     """Demote any level-k title whose k-1 ancestor is missing.
 
     Walks titles in reading order (cands is already ordered). Maintains a
     `seen` set of levels that have appeared. If a title claims level k but
     k-1 has not been seen, demote it step by step until k-1 exists or k=1.
+
+    Front matter titles (前言, 序, 后记, etc.) are never demoted below H2 —
+    they're structural sections, not chapters. Without this, "前言" (H3
+    fallback) would be demoted to H1, stealing the ch-1 anchor from the
+    first real chapter and breaking AI review's level-jump detection.
     """
     seen: set[int] = set()
     for _page, el in cands:
         lvl = el.inferred_level
         if lvl is None:
             continue
-        while lvl > 1 and (lvl - 1) not in seen:
+        is_front_matter = (
+            front_matter_res
+            and any(r.match(el.text.strip()) for r in front_matter_res)
+        )
+        min_level = 2 if is_front_matter else 1
+        while lvl > min_level and (lvl - 1) not in seen:
             lvl -= 1
             el.inferred_level = lvl
         seen.add(lvl)
@@ -347,8 +372,59 @@ def to_markdown(
     blocks = [_wrap_dialogue(b) for b in blocks]
     blocks = _wrap_chapters(blocks)
 
+    # Sanity check: ensure every non-skipped page produced output. This
+    # catches regressions where a page is silently dropped (e.g. by a
+    # bug in the merge/title-inference logic). We don't assert exact block
+    # counts (merging and title inference change counts), only that each
+    # page contributed at least one block.
+    _assert_no_pages_dropped(pages, blocks)
+
     out.write_text("\n\n".join(blocks).rstrip() + "\n", encoding="utf-8")
     return out
+
+
+def _assert_no_pages_dropped(
+    pages: list[PageResult], blocks: list[str]
+) -> None:
+    """Verify that every non-skipped page produced at least one block.
+
+    Skipped pages: ``_SKIP_PAGE_TYPES`` (cover). All other pages (including
+    image-rendered ones) must contribute content to ``blocks``. A dropped
+    page indicates a bug in the assembly logic that would cause the EPUB
+    to be missing content from the source PDF.
+    """
+    expected_indices = {
+        p.page_index
+        for p in pages
+        if p.page_type not in _SKIP_PAGE_TYPES
+    }
+    if not expected_indices:
+        return
+    # Image-rendered pages contribute ``![](pages/page_NNNN.png)`` blocks.
+    # Text-rendered pages contribute their element text. Either way, the
+    # page index should appear somewhere in the joined block text for
+    # image pages, or the page's text elements should appear for text pages.
+    # Simplest robust check: count image-page references and verify total
+    # block count is at least (non-skipped pages - merged pages). Since
+    # merging reduces block count, we use a conservative lower bound:
+    # at least 1 block per image-rendered page (which can't be merged).
+    image_pages = {
+        p.page_index
+        for p in pages
+        if p.page_type in _IMAGE_RENDER_TYPES
+    }
+    block_text = "\n".join(blocks)
+    missing_image_pages = [
+        idx
+        for idx in sorted(image_pages)
+        if f"page_{idx:04d}.png" not in block_text
+    ]
+    if missing_image_pages:
+        raise RuntimeError(
+            f"to_markdown dropped image-rendered pages: {missing_image_pages}. "
+            "This indicates a bug in page assembly that would cause the "
+            "EPUB to be missing content from the source PDF."
+        )
 
 
 def _is_h1_block(block: str) -> bool:

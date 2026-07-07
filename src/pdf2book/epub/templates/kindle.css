@@ -67,12 +67,50 @@ p + p {
   margin-top: 0.3em;
 }
 
-/* Images: block, centered, fit to screen. */
+/* Images: block, centered, fit to screen.
+   Full-page images (cover, frontispiece, copyright) must not exceed
+   the viewport height, otherwise the reader pushes overflow onto a
+   blank second page. We cap height three ways for cross-reader
+   robustness:
+     - `max-height: 95vh`  — modern EPUB3 readers (K8, Apple Books).
+     - `height: 95vh`      — overrides any intrinsic height attribute
+                              so a 1867px-tall PNG doesn't force a
+                              taller page on readers that ignore
+                              `max-height` but honor `height`.
+     - `width: auto`       — keep aspect ratio (do not set both width
+                              and height to fixed units, or the image
+                              distorts).
+   `page-break-inside: avoid` + `page-break-after: avoid` together
+   prevent the reader from inserting a blank page between consecutive
+   full-page images (cover→frontispiece→copyright).
+   `object-fit: contain` is the final safety net on KF8: even if the
+   computed box is slightly larger than the viewport, the image is
+   letterboxed inside it instead of overflowing.
+   The 95% (not 100%) leaves headroom for reader chrome (status bar,
+   page margins) that would otherwise push a 100vh image onto the
+   next page. */
 img {
   max-width: 100%;
-  height: auto;
+  max-height: 95vh;
+  height: 95vh;
+  width: auto;
   display: block;
-  margin: 1.2em auto;
+  margin: 0 auto;
+  page-break-inside: avoid;
+  page-break-after: avoid;
+  object-fit: contain;
+}
+
+/* Some older readers ignore `vh` entirely (early KF8, MOBI7 fallback).
+   For those, an explicit `height` in `em` based on a 1.75 line-height
+   body gives ~one screen of content. We use `!important` because
+   reader stylesheets often inject their own img height. This rule is
+   only a hint — readers that honored `max-height: 95vh` already
+   constrained the image and this rule doesn't override `max-height`
+   (only `height`), so the smaller of the two wins. */
+img[height] {
+  height: auto !important;
+  max-height: 95vh !important;
 }
 
 /* Tables: full width, simple borders. */
@@ -168,4 +206,22 @@ hr {
   border-top: 1px solid #ccc;
   margin: 2em auto;
   width: 40%;
+}
+
+/* --- TOC link list (default typography convention) ---
+   Pandoc emits `<div class="toc-list">` from `::: {.toc-list}` fenced div.
+   Each entry is a clickable link to its chapter anchor. Vertical list
+   (one entry per line) is the default for all books. */
+.toc-list ul {
+  list-style: none;
+  margin: 0.5em 0;
+  padding-left: 0;
+}
+.toc-list li {
+  margin: 0.3em 0;
+  text-indent: 0;
+  text-align: left;
+}
+.toc-list a {
+  text-decoration: none;
 }

@@ -1,7 +1,6 @@
-"""Main conversion pipeline: PDF -> OCR -> postprocess -> review -> markdown -> EPUB.
+"""Main conversion pipeline: PDF -> OCR -> postprocess -> markdown -> AI review -> EPUB.
 
-Orchestrates the stages implemented in T3-T10 plus the Phase 5-6 AI review
-loop in two separable phases:
+Orchestrates the stages in two separable phases:
 
   Stage 1 — ``run_to_markdown``:
     1. PDF render (PyMuPDF)  — ``PDFExtractor.render_pages``
@@ -9,9 +8,10 @@ loop in two separable phases:
     3. Post-process           — header/footer -> merge -> title levels -> images
     4. CIP extraction         — rule-based metadata from copyright page
     5. Page classification    — cover/copyright/toc/body/... via heuristics
-    6. AI review (optional)   — collect -> constrain -> prompt -> retry -> apply
-    7. Markdown assembly      — ``structure.to_markdown`` -> ``book.md``
-    8. Metadata export        — ``write_meta_yaml`` -> ``meta.md``
+    6. Markdown assembly      — ``structure.to_markdown`` -> ``book.md``
+    7. Metadata export        — ``write_meta_yaml`` -> ``meta.md``
+    8. AI review (optional)   — review ``book.md`` + ``meta.md`` and fix issues
+                                (low-confidence text, title issues, metadata)
 
   Stage 2 — ``build_epub``:
     9. EPUB build             — ``PandocBuilder`` via pypandoc
@@ -23,22 +23,32 @@ The OCR stage is the only one that touches the cache: post-processing is
 cheap and deterministic, so we re-run it on every resume from the cached
 raw PP-Structure JSON.
 
-AI review (step 6) is gated by ``cfg.ai_review.enabled``. When disabled,
-low-confidence texts keep their ``>[low-confidence]`` markers in book.md
-for manual proofreading, and metadata falls back to CIP extraction (or
-PDF embedded metadata when CIP also fails).
+AI review (step 8) is gated by ``cfg.ai_review.enabled``. It runs AFTER
+markdown generation so the AI sees the actual structure that will become
+the EPUB. When disabled, low-confidence texts keep their
+``>[low-confidence]`` markers in book.md for manual proofreading, and
+metadata falls back to CIP extraction (or PDF embedded metadata when CIP
+also fails).
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 from rich.progress import track
 
 from pdf2book.config import AppConfig
 from pdf2book.epub.builder import EpubBuilder, make_epub_builder
-from pdf2book.epub.metadata import BookMetadata, read_meta_yaml, write_meta_yaml
+from pdf2book.epub.metadata import (
+    BookMetadata,
+    BookStructure,
+    BookStructureEntry,
+    read_meta_yaml,
+    write_meta_yaml,
+)
+from pdf2book.epub.toc_links import linkify_toc_entries
 from pdf2book.ocr.base import OCRBackend, make_ocr_backend
 from pdf2book.ocr.models import PageResult
 from pdf2book.pdf.extractor import PDFExtractor
@@ -48,6 +58,33 @@ from pdf2book.postprocess.processor import PostProcessor
 from pdf2book.postprocess.structure import infer_title_levels
 from pdf2book.utils.cache import Cache, cfg_hash, pdf_sha1
 from pdf2book.utils.logger import get_logger
+
+# Each entry is (pattern, replacement). Patterns are applied in order.
+_AI_MARKER_PATTERNS = [
+    # Low-confidence blockquote prefix: ">[low-confidence] {text}" -> "{text}"
+    # Strip prefix, keep the original OCR text.
+    (re.compile(r"^\s*>\[low-confidence\]\s*(.*)$", re.MULTILINE), r"\1"),
+    # Trailing [UNCLEAR] marker (AI couldn't determine correction) -> remove
+    (re.compile(r"\s*\[UNCLEAR\]\s*$", re.MULTILINE), ""),
+    # Trailing [需校对] marker (AI correction failed validation) -> remove
+    (re.compile(r"\s*\[需校对\]\s*$", re.MULTILINE), ""),
+]
+
+
+def _strip_ai_markers(md_text: str) -> str:
+    """Remove AI review markers from markdown text.
+
+    Strips:
+      - ``>[low-confidence]`` blockquote prefix (keeps original OCR text)
+      - Trailing ``[UNCLEAR]`` markers
+      - Trailing ``[需校对]`` markers
+
+    This ensures the final EPUB contains only readable text, not
+    intermediate review artifacts. Called before passing book.md to Pandoc.
+    """
+    for pattern, replacement in _AI_MARKER_PATTERNS:
+        md_text = pattern.sub(replacement, md_text)
+    return md_text
 
 
 class ConversionPipeline:
@@ -142,10 +179,8 @@ class ConversionPipeline:
         # Always runs — these are rule-based and feed into AI review.
         book_meta = self._extract_metadata_and_classify(page_results, meta)
 
-        # AI review stage (Phase 6). No-op when cfg.ai_review.enabled=False.
-        book_meta = self._ai_review_stage(page_results, book_meta)
-
-        # Markdown assembly (uses AI-corrected texts via Element.ai_corrected).
+        # Markdown assembly (with low-confidence markers + title issues).
+        # AI review runs AFTER this stage so it sees the actual structure.
         self._cfg.work_dir.mkdir(parents=True, exist_ok=True)
         book_md = self._post.to_markdown(page_results, meta, self._cfg.work_dir)
         self._log.info("Markdown written: %s", book_md)
@@ -153,6 +188,11 @@ class ConversionPipeline:
         # Export metadata so build_epub can run without the original PDF.
         meta_path = write_meta_yaml(book_meta, self._cfg.work_dir)
         self._log.info("Metadata written: %s", meta_path)
+
+        # AI review stage: read book.md + meta.md, fix issues, write back.
+        # No-op when cfg.ai_review.enabled=False. On failure, book.md keeps
+        # its low-confidence markers for manual proofreading.
+        book_meta = self._ai_markdown_review_stage(book_md, meta_path, book_meta)
 
         return book_md
 
@@ -218,14 +258,67 @@ class ConversionPipeline:
             skip_types = DECORATIVE_TYPES | {PageType.TOC}
             infer_title_levels(pages, self._cfg.postprocess, skip_page_types=skip_types)
 
+        # Build book_structure from classification results for AI verification.
+        cip_meta.book_structure = self._build_book_structure(pages)
+
         return cip_meta
 
-    def _ai_review_stage(
+    def _build_book_structure(self, pages: list[PageResult]) -> BookStructure:
+        """Build a ``BookStructure`` summary from page classification results.
+
+        Records each page's type and render mode (image vs text), the
+        detected ordering of distinct page types, missing expected types,
+        and structural anomalies (e.g. copyright page appearing after the
+        body instead of in the front matter).
+        """
+        expected_order = [
+            "cover", "frontispiece", "copyright",
+            "preface", "toc", "body", "back_cover",
+        ]
+        detected_pages: list[BookStructureEntry] = []
+        detected_order: list[str] = []
+        for p in sorted(pages, key=lambda x: x.page_index):
+            page_type = p.page_type
+            rendered_as = "image" if page_type in DECORATIVE_TYPES else "text"
+            detected_pages.append(
+                BookStructureEntry(
+                    page_index=p.page_index,
+                    page_type=page_type,
+                    rendered_as=rendered_as,
+                )
+            )
+            if page_type != "unknown" and page_type not in detected_order:
+                detected_order.append(page_type)
+
+        missing = [t for t in expected_order if t not in detected_order]
+        anomalies = self._detect_structure_anomalies(detected_order)
+
+        return BookStructure(
+            order=detected_order,
+            pages=detected_pages,
+            missing=missing,
+            anomalies=anomalies,
+        )
+
+    @staticmethod
+    def _detect_structure_anomalies(order: list[str]) -> list[str]:
+        """Detect structural anomalies like a copyright page at the end."""
+        anomalies: list[str] = []
+        if "copyright" in order and "body" in order:
+            if order.index("copyright") > order.index("body"):
+                anomalies.append("copyright_at_end")
+        if "back_cover" in order and "body" in order:
+            if order.index("back_cover") < order.index("body"):
+                anomalies.append("back_cover_before_body")
+        return anomalies
+
+    def _ai_markdown_review_stage(
         self,
-        pages: list[PageResult],
+        md_path: Path,
+        meta_path: Path,
         rule_meta: BookMetadata,
     ) -> BookMetadata:
-        """Run the AI review loop: collect -> review -> apply.
+        """Run AI review on the generated ``book.md`` and ``meta.md``.
 
         No-op when ``cfg.ai_review.enabled=False``. Returns the (possibly
         AI-updated) BookMetadata. On AI failure (network error, etc.),
@@ -237,43 +330,22 @@ class ConversionPipeline:
             return rule_meta
 
         # Lazy import to avoid loading review module when disabled.
-        from pdf2book.review import (
-            AIClient,
-            apply_review_results,
-            collect_review_items,
-        )
+        from pdf2book.review import AIClient
 
-        self._log.info("AI review stage (model=%s)", cfg.model)
-        review_items = collect_review_items(pages, rule_meta)
-        self._log.info(
-            "Review items: %d low-conf, %d titles, %d page-types, meta_candidates=%d",
-            len(review_items["low_confidence_texts"]),
-            len(review_items["title_candidates"]),
-            len(review_items["page_type_candidates"]),
-            len(review_items["metadata"]["candidates"]),
-        )
-
+        self._log.info("AI markdown review stage (model=%s)", cfg.model)
         client = AIClient(cfg)
         try:
-            review_result = client.review_all(review_items)
+            updated_meta = client.review_markdown(md_path, meta_path, rule_meta)
         except Exception as exc:
             self._log.warning(
-                "AI review failed (%s); using rule-based results", exc
+                "AI markdown review failed (%s); using rule-based results", exc
             )
             return rule_meta
         finally:
             client.close()
 
-        self._log.info(
-            "AI review done: %d corrections, %d titles, %d page-types, meta=%s",
-            len(review_result.low_confidence),
-            len(review_result.titles),
-            len(review_result.page_types),
-            "updated" if review_result.metadata else "unchanged",
-        )
-
-        _, final_meta = apply_review_results(pages, rule_meta, review_result)
-        return final_meta
+        self._log.info("AI markdown review done")
+        return updated_meta
 
     # ------------------------------------------------------------------
     # Stage 2: Markdown -> EPUB
@@ -333,7 +405,29 @@ class ConversionPipeline:
                     self._log.info("Fallback cover (page_0000): %s", cover)
 
         css_path = css if css is not None else self._cfg.epub.css_path
-        self._epub.build(md_path, book_meta, out_path, cover=cover, css=css_path)
+
+        # Strip AI review markers before EPUB build. Markers like
+        # ``>[low-confidence]``, ``[UNCLEAR]``, ``[需校对]`` are intermediate
+        # review artifacts that must not leak into the final EPUB. We write a
+        # cleaned copy to a temp file (book.epub.md) so the original book.md
+        # retains the markers for debugging/manual review.
+        original_text = md_path.read_text(encoding="utf-8")
+        cleaned_text = _strip_ai_markers(original_text)
+        # TOC linkification fallback: convert "标题／页码" paragraphs into a
+        # clickable vertical list. Idempotent — skips when AI review already
+        # produced a `::: {.toc-list}` block or no TOC region is found.
+        cleaned_text = linkify_toc_entries(cleaned_text)
+        if cleaned_text != original_text:
+            cleaned_md = md_path.with_suffix(".epub.md")
+            cleaned_md.write_text(cleaned_text, encoding="utf-8")
+            self._log.info(
+                "Stripped AI markers + linkified TOC; using cleaned markdown for EPUB"
+            )
+            build_md = cleaned_md
+        else:
+            build_md = md_path
+
+        self._epub.build(build_md, book_meta, out_path, cover=cover, css=css_path)
         self._log.info("EPUB written: %s", out_path)
         return out_path
 
