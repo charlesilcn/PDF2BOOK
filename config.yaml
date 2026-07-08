@@ -1,10 +1,25 @@
-work_dir: .pdf2book
-cache_db: .pdf2book/cache.db
+work_dir: workspace
+cache_db: workspace/cache.db
+input_dir: inbox
+output_dir: library
 ocr:
+  # OCR 后端 — 三种可选方案（按需切换）：
+  #   paddle_pp : 默认。PaddleOCR PP-StructureV3，CPU 友好，含版面分析（~1.5GB 模型）
+  #   rapid_ocr : 轻量。RapidOCR onnxruntime，~50MB，纯文本 OCR 无版面分类，适合批量短 PDF
+  #   cloud_ocr : 高质量远程。调用 PP-StructureV3 兼容的 OCR API（需配下方 cloud_api_url）
+  #   paddle_vl : 预留占位（需 NVIDIA GPU + paddleocr-vl 包），未实现
+  # 命令行可用 --backend 临时覆盖，如：pdf2book convert x.pdf --backend rapid_ocr
+  backend: paddle_pp
   dpi: 300
   use_table_recognition: false
   use_formula_recognition: false
   use_region_detection: true
+  # cloud_ocr 后端专用：远程 OCR API endpoint
+  # 协议：POST {cloud_api_url}，Body {"image": "<base64 PNG>", "page_index": N}
+  #       响应为 PP-StructureV3 兼容 JSON（parsing_res_list + layout_det_res）
+  # 留空时 paddle_pp/rapid_ocr 不受影响；切到 backend: cloud_ocr 时必须填写
+  cloud_api_url: ""
+  cloud_api_key: ""
 postprocess:
   drop_header_footer: true
   merge_cross_page: true
@@ -12,3 +27,13 @@ postprocess:
 epub:
   toc_depth: 3
   chapter_level: 3
+ai_review:
+  api_url: ""
+  api_key: ""
+  model: sensenova-6.7-flash-lite
+  max_tokens: 8192
+  max_retries: 3
+  timeout: 120.0
+  # 多模态视觉审查（需视觉模型如 gpt-4o-mini）
+  multimodal: true
+  max_images: 8

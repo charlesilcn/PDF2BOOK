@@ -30,11 +30,36 @@ Traditional conversion tools only "mechanically transport" content. PDF2BOOK let
 - **Automatic page classification** — Rule-based identification of cover/frontispiece/copyright/TOC/body/endpages; decorative pages use PDF renders directly, body pages get OCR'd
 - **CIP metadata extraction** — Extracts title, author, ISBN, publisher from copyright page OCR text following GB/T 12451 standard
 - **Three-tier confidence marking** — Text classified as normal / low-confidence / dropped based on OCR recognition confidence; low-confidence text is preserved and marked for proofreading
-- **AI review pipeline** — `--ai-review` enables LLM proofreading of low-confidence text, heading correction, metadata extraction, and book structure validation
+- **AI review pipeline** — Auto-enables when `api_key` is set in `config.yaml`; LLM proofreads low-confidence text, fixes headings, extracts metadata, validates book structure; `epub` stage supports supplemental review (idempotent)
 - **Automatic TOC linking** — Converts "title／page-number" format TOC into clickable vertical link lists that jump to corresponding chapters
 - **Batch processing** — `batch` subcommand converts all PDFs in a directory in parallel, each with independent work directory and cache
 - **Resume support** — SQLite cache stores OCR results; `--resume` skips completed pages
 - **Kindle-optimized typography** — Built-in `kindle.css`, `chapter_level` controls chapter granularity, each story/chapter gets its own page
+
+## Quick Start
+
+The project uses a standard three-folder layout with zero configuration:
+
+```
+PDF2BOOK/
+├── inbox/       # Drop PDFs to convert here
+├── library/     # Generated EPUBs (named after the source PDF stem)
+└── workspace/   # Intermediate artifacts (per-book subdirectory workspace/{stem}/)
+```
+
+**One command to convert**:
+
+```bash
+# 1. Put your PDF in inbox/
+cp your_book.pdf inbox/
+
+# 2. Run (no arguments)
+pdf2book
+
+# 3. EPUB appears in library/your_book.epub
+```
+
+Intermediate artifacts (`book.md`, `meta.md`, page renders, cache) are organized under `workspace/{book_title}/` for easy debugging and proofreading.
 
 ## Installation
 
@@ -67,102 +92,112 @@ pip install -e ".[ocr,dev]"
 
 ## Usage
 
+PDF2BOOK offers two usage modes, both letting AI fully take over proofreading/layout/metadata work so the user never needs to manually review:
+
+| Mode | Use case | API key required | Who does the AI work |
+|---|---|---|---|
+| **CLI mode** | Command-line batch processing, script integration | Yes (in config.yaml) | External LLM (e.g. GPT-4o-mini) |
+| **Skill mode** | Natural-language trigger in Trae IDE | No | Trae agent's own reasoning |
+
 ### Preparation
 
 1. Prepare a scanned PDF book (e.g., `world_myths.pdf`)
-2. (Optional) Create a `config.yaml` to adjust OCR and layout parameters — see [Configuration](#configuration)
-3. Confirm dependencies are installed: `pip install -e ".[ocr,dev]"`
+2. Install dependencies: `pip install -e ".[ocr,dev]"`
+3. (CLI mode) Fill in `api_key` in `config.yaml` (see below); Skill mode skips this step
 
-### Two-Stage Workflow (Recommended)
+### CLI Mode (requires apikey, AI fully takes over)
 
-First generate a previewable Markdown, then build the EPUB after editing. Suitable for scenarios requiring manual OCR proofreading.
-
-**Stage 1: PDF → OCR → Markdown**
-
-```bash
-pdf2book ocr world_myths.pdf --config config.yaml
-```
-
-This generates the following in the working directory (default `.pdf2book/`):
-
-| File | Description |
-|---|---|
-| `.pdf2book/book.md` | Full-text Markdown from OCR, editable |
-| `.pdf2book/meta.md` | Metadata YAML (title, author, language, etc.) |
-| `.pdf2book/pages/page_NNNN.png` | Per-page renders (can be used as cover) |
-| `.pdf2book/images/pN_eM.png` | Cropped illustrations |
-| `.pdf2book/cache.db` | SQLite cache for resume support |
-
-**Edit intermediate output (optional but recommended)**
-
-OCR results may contain minor errors. Manual proofreading before building the EPUB is recommended:
-
-- Edit `book.md`: fix typos, adjust heading levels (`#`/`##`/`###`), remove irrelevant content
-- Edit `meta.md`: fill in correct title and author. Format:
-
-```yaml
----
-title: World Myths and Legends
-author: Xu Chen
-lang: en
-date: '2026-07-06'
----
-```
-
-**Stage 2: Markdown → EPUB**
-
-```bash
-pdf2book epub .pdf2book/book.md -o world_myths.epub \
-    --cover .pdf2book/pages/page_0000.png
-```
-
-`--cover` specifies the cover image — recommended to use the first page render (`page_0000.png`). The EPUB will auto-split by `chapter_level` and generate a TOC by `toc_depth`.
-
-### One-Shot Mode
-
-Complete PDF → EPUB conversion in one step without previewing intermediates:
-
-```bash
-pdf2book convert world_myths.pdf -o world_myths.epub \
-    --cover .pdf2book/pages/page_0000.png \
-    --config config.yaml
-```
-
-### Batch Processing
-
-Convert all PDFs in a directory:
-
-```bash
-pdf2book batch ./pdfs/ -o ./epubs/ --workers 2 --config config.yaml
-```
-
-Each PDF gets its own `work_dir/{stem}/` subdirectory and SQLite cache. RapidOCR uses ~50MB/process (high concurrency OK); PaddlePP uses ~1.5GB/process (recommend `--workers 1-2`).
-
-### Resume
-
-OCR is the most time-consuming stage. If interrupted, use `--resume` to recover from cache and skip completed pages:
-
-```bash
-pdf2book ocr world_myths.pdf --resume --config config.yaml
-```
-
-### Enable AI Proofreading
-
-Configure the `ai_review` section in `config.yaml`, then use the `--ai-review` flag:
+**Configure apikey**: Fill in your api_key in the `ai_review` section of `config.yaml`. Once set, AI review auto-enables — no extra flags needed:
 
 ```yaml
 ai_review:
-  enabled: true
   api_url: "https://api.openai.com/v1/chat/completions"
-  api_key: "your-api-key"
+  api_key: "your-api-key"    # AI review auto-enables once filled in
   model: "gpt-4o-mini"
 ```
 
+> **Auto-enable rule**: AI review turns on when `api_key` is non-empty and `enabled` is not explicitly `false`. To force it off (e.g. the Skill path), pass `--no-ai-review` or write `enabled: false` explicitly.
+
+**One-command PDF → EPUB (one-shot full pipeline)**
+
 ```bash
-pdf2book convert world_myths.pdf -o out.epub --ai-review --config config.yaml
+pdf2book convert inbox/world_myths.pdf
 ```
 
-AI review will: proofread low-confidence OCR text, fix garbled headings, supplement metadata, validate chapter structure, and linkify the TOC.
+Default output to `library/world_myths.epub` (named after the PDF stem). AI handles everything: page classification, CIP metadata extraction, OCR typo correction, heading-level fixes, layout parameter inference, TOC linkification. No manual review needed.
+
+**One-command PDF → Markdown (staged, previewable)**
+
+```bash
+pdf2book ocr inbox/world_myths.pdf
+```
+
+Generates `workspace/world_myths/book.md` + `workspace/world_myths/meta.md`. To manually fine-tune before building the EPUB, edit `book.md`/`meta.md` then run the command below.
+
+**One-command Markdown → EPUB (from existing OCR results)**
+
+```bash
+pdf2book epub workspace/world_myths/book.md -o library/world_myths.epub \
+    --cover workspace/world_myths/pages/page_0000.png
+```
+
+If `book.md` still contains `>[low-confidence]` markers (OCR ran without AI review), this command auto-supplements AI review before building the EPUB (idempotent: skips if already cleaned).
+
+**Batch Processing**
+
+```bash
+pdf2book batch                       # Default: inbox/ → library/
+# Or specify directories
+pdf2book batch ./pdfs/ -o ./epubs/ --workers 2
+```
+
+Each PDF gets its own `workspace/{stem}/` subdirectory and SQLite cache. RapidOCR uses ~50MB/process; PaddlePP uses ~1.5GB/process (recommend `--workers 1-2`).
+
+**Resume**
+
+```bash
+pdf2book ocr inbox/world_myths.pdf --resume
+```
+
+**Force-disable AI review** (e.g. to keep raw OCR results for manual proofreading):
+
+```bash
+pdf2book convert inbox/world_myths.pdf --no-ai-review
+```
+
+#### Output Artifacts
+
+| File | Description |
+|---|---|
+| `workspace/{stem}/book.md` | Full-text Markdown after OCR + AI proofreading |
+| `workspace/{stem}/meta.md` | Metadata YAML extracted by CIP/AI (title, author, language, etc.) |
+| `workspace/{stem}/pages/page_NNNN.png` | Per-page renders (can be used as cover) |
+| `workspace/{stem}/images/pN_eM.png` | Cropped illustrations |
+| `workspace/{stem}/cache.db` | SQLite cache for resume support |
+
+### Skill Mode (no apikey required, agent's own reasoning)
+
+In the Trae IDE, say "convert XX.pdf to EPUB" and the AI agent automatically completes a 9-step decision chain:
+
+1. Full OCR (auto page classification + CIP extraction + confidence filtering)
+2. AI reviews page structure (agent reads book.md to verify classification)
+3. AI proofreads metadata (agent cross-checks meta.md against cover/copyright pages)
+4. Generate config.yaml
+5. Regenerate book.md (from cache, applying latest config)
+6. AI proofreads book.md (agent fixes low-confidence text, typos, heading levels)
+7. AI infers layout parameters (agent analyzes heading distribution to decide toc_depth/chapter_level)
+8. Generate final EPUB
+
+Under the Skill path, all `pdf2book` commands pass `--no-ai-review` and `config.yaml` explicitly writes `ai_review.enabled: false`, ensuring no external LLM calls. AI work is done by the agent itself using Read/Grep/Edit tools.
+
+See [`.trae/skills/pdf2book/SKILL.md`](.trae/skills/pdf2book/SKILL.md) for details.
+
+### Migration Note (for old --ai-review users)
+
+The old `--ai-review` flag has been removed. Migration:
+- Old usage: `pdf2book convert book.pdf -o out.epub --ai-review`
+- New usage: fill `api_key` in `config.yaml`, then `pdf2book convert book.pdf -o out.epub`
+- Force off: add `--no-ai-review`
 
 ### Common Scenarios
 
@@ -192,7 +227,15 @@ epub:
 
 ## CLI Reference
 
-Four subcommands, invoked via `pdf2book <subcommand>` (also supports `python -m pdf2book`):
+Running `pdf2book` (no arguments) is equivalent to `pdf2book batch inbox -o library`, auto-scanning inbox/ and outputting to library/. Four subcommands via `pdf2book <subcommand>` (also supports `python -m pdf2book`):
+
+### `pdf2book` — Zero-argument default behavior
+
+```
+pdf2book
+# Equivalent to: scan inbox/ for all PDFs → output to library/{stem}.epub
+# Intermediate artifacts in workspace/{stem}/
+```
 
 ### `pdf2book ocr` — Stage 1: PDF → Markdown
 
@@ -200,11 +243,11 @@ Four subcommands, invoked via `pdf2book <subcommand>` (also supports `python -m 
 pdf2book ocr PDF [OPTIONS]
 
 Options:
-  --resume         Resume from cache, skip already-OCR'd pages
-  --config PATH    Config YAML path (uses built-in defaults if omitted)
-  --backend NAME   OCR backend: paddle_pp | rapid_ocr | paddle_vl | cloud_ocr
-  --ai-review      Enable AI review (low-confidence proofreading + metadata + headings)
-  -v, --verbose    Enable DEBUG logging
+  --resume          Resume from cache, skip already-OCR'd pages
+  --config PATH     Config YAML path (auto-discovers cwd config.yaml)
+  --backend NAME    OCR backend: paddle_pp | rapid_ocr | paddle_vl | cloud_ocr
+  --no-ai-review    Force-disable AI review (even if config.yaml has api_key)
+  -v, --verbose     Enable DEBUG logging
 ```
 
 ### `pdf2book epub` — Stage 2: Markdown → EPUB
@@ -218,44 +261,57 @@ Options:
   --cover PATH        Cover image path
   --css PATH          CSS stylesheet path (defaults to built-in kindle.css)
   --config PATH       Config YAML path
+  --no-ai-review      Force-disable AI review (auto-enables by default when
+                      api_key is set and book.md has low-confidence markers,
+                      supplemental review runs idempotently)
   -v, --verbose       Enable DEBUG logging
 ```
 
 ### `pdf2book convert` — One-Shot Mode
 
 ```
-pdf2book convert PDF -o OUTPUT [OPTIONS]
+pdf2book convert [PDF] [-o OUTPUT] [OPTIONS]
+
+# No PDF argument: process inbox/ → library/ (default behavior)
+# PDF without -o: defaults to library/{stem}.epub
 
 Options:
-  -o, --output PATH   Output EPUB path (required)
+  -o, --output PATH   Output EPUB path (default: library/{stem}.epub)
   --resume            Resume from cache
   --config PATH       Config YAML path
   --backend NAME      OCR backend: paddle_pp | rapid_ocr | paddle_vl | cloud_ocr
   --cover PATH        Cover image path
-  --ai-review         Enable AI review
+  --no-ai-review      Force-disable AI review
   -v, --verbose       Enable DEBUG logging
 ```
 
 ### `pdf2book batch` — Batch Conversion
 
 ```
-pdf2book batch INPUT_DIR -o OUTPUT_DIR [OPTIONS]
+pdf2book batch [INPUT_DIR] [-o OUTPUT_DIR] [OPTIONS]
+
+# Default: inbox/ → library/
 
 Options:
-  -o, --output PATH   Output directory (required)
+  -o, --output PATH   Output directory (default: library/)
   --workers N         Parallel worker processes (memory scales linearly)
   --resume            Resume from cache
   --config PATH       Config YAML path
   --backend NAME      OCR backend
-  --ai-review         Enable AI review
+  --no-ai-review      Force-disable AI review
   -v, --verbose       Enable DEBUG logging
 ```
 
 ## Configuration
 
-Specify a config file via `--config config.yaml`. Full field example in [`config.yaml`](config.yaml):
+`pdf2book` auto-discovers `config.yaml` in the current directory (no `--config` needed). Full field example in [`config.yaml`](config.yaml):
 
 ```yaml
+work_dir: workspace          # Intermediate artifacts root (per-book under workspace/{stem}/)
+cache_db: workspace/cache.db # SQLite cache base path (actual: workspace/{stem}/cache.db)
+input_dir: inbox             # PDF input directory
+output_dir: library          # EPUB output directory
+
 ocr:
   backend: paddle_pp        # paddle_pp (CPU) | rapid_ocr | paddle_vl (GPU) | cloud_ocr
   dpi: 300                  # Render DPI; higher = clearer but slower
@@ -278,9 +334,9 @@ epub:
   cover: null               # Cover image (recommend passing via --cover CLI flag)
 
 ai_review:
-  enabled: false            # Off by default; enable with --ai-review flag
+  enabled: false            # Explicit false disables even with api_key set (Skill path)
   api_url: ""               # OpenAI-compatible chat/completions endpoint
-  api_key: ""               # API key
+  api_key: ""               # Fill in to auto-enable AI review (no need for enabled: true)
   model: "gpt-4o-mini"      # Model name (constraint validation loop ensures quality; cheap models OK)
   max_tokens: 8192          # Response token cap (large books need 8192 to avoid truncation)
 ```
@@ -299,34 +355,39 @@ ai_review:
 ## Project Structure
 
 ```
-src/pdf2book/
-├── cli.py              # Typer CLI entry (ocr/epub/convert/batch subcommands)
-├── __main__.py         # Supports python -m pdf2book
-├── pipeline.py         # Two-stage pipeline orchestration
-├── batch.py            # Batch parallel conversion
-├── config.py           # Pydantic config models
-├── ocr/                # OCR backends (paddle_pp/rapid_ocr/paddle_vl/cloud_ocr + abstract base)
-├── postprocess/        # Post-processing
-│   ├── processor.py        # Orchestration: header/footer, cross-page merge, heading levels, image crop
-│   ├── header_footer.py    # Header/footer detection and removal
-│   ├── merger.py           # Cross-page paragraph merging (CJK-punctuation-aware)
-│   ├── structure.py        # Heading level inference + page classification dispatch
-│   ├── page_classifier.py  # Rule-based page type identification (cover/frontispiece/copyright/TOC/body/endpage)
-│   ├── cip_extractor.py    # CIP metadata extraction (GB/T 12451)
-│   ├── confidence_filter.py # OCR confidence filtering and three-tier marking
-│   ├── typography.py       # Chinese publishing typography rules
-│   └── images.py           # Illustration cropping
-├── review/             # AI review pipeline (enabled with --ai-review)
-│   ├── markdown_review.py  # Collector + Prompt + Applier (incl. TOC linkification)
-│   ├── ai_client.py        # LLM calls + retry + JSON repair
-│   └── constraints.py      # Correction constraint extraction and validation
-├── epub/               # EPUB construction
-│   ├── builder.py          # Pandoc invocation + post-processing (remove auto-title page/fix ncx)
-│   ├── metadata.py         # Metadata YAML read/write + BookMetadata
-│   ├── toc_links.py        # TOC linkification plain-text fallback
-│   └── templates/kindle.css # Kindle-optimized CSS
-├── pdf/                # PDF rendering and metadata extraction
-└── utils/              # SQLite cache, logging
+PDF2BOOK/
+├── inbox/                 # Drop PDFs to convert here (zero-config entry)
+├── library/               # Generated EPUBs (named after source PDF stem)
+├── workspace/             # Intermediate artifacts (per-book subdirectory workspace/{stem}/)
+├── config.yaml            # Config file (auto-loaded, no --config needed)
+└── src/pdf2book/
+    ├── cli.py              # Typer CLI entry (no-arg default processes inbox/ → library/)
+    ├── __main__.py         # Supports python -m pdf2book
+    ├── pipeline.py         # Two-stage pipeline orchestration
+    ├── batch.py            # Batch parallel conversion (calls isolate_work_dir per book)
+    ├── config.py           # Pydantic config models + isolate_work_dir shared function
+    ├── ocr/                # OCR backends (paddle_pp/rapid_ocr/paddle_vl/cloud_ocr + abstract base)
+    ├── postprocess/        # Post-processing
+    │   ├── processor.py        # Orchestration: header/footer, cross-page merge, heading levels, image crop
+    │   ├── header_footer.py    # Header/footer detection and removal
+    │   ├── merger.py           # Cross-page paragraph merging (CJK-punctuation-aware)
+    │   ├── structure.py        # Heading level inference + page classification dispatch
+    │   ├── page_classifier.py  # Rule-based page type identification (cover/frontispiece/copyright/TOC/body/endpage)
+    │   ├── cip_extractor.py    # CIP metadata extraction (GB/T 12451)
+    │   ├── confidence_filter.py # OCR confidence filtering and three-tier marking
+    │   ├── typography.py       # Chinese publishing typography rules
+    │   └── images.py           # Illustration cropping
+    ├── review/             # AI review pipeline (auto-enables when config.yaml has api_key)
+    │   ├── markdown_review.py  # Collector + Prompt + Applier (incl. TOC linkification)
+    │   ├── ai_client.py        # LLM calls + retry + JSON repair
+    │   └── constraints.py      # Correction constraint extraction and validation
+    ├── epub/               # EPUB construction
+    │   ├── builder.py          # Pandoc invocation + post-processing (remove auto-title page/fix ncx)
+    │   ├── metadata.py         # Metadata YAML read/write + BookMetadata
+    │   ├── toc_links.py        # TOC linkification plain-text fallback
+    │   └── templates/kindle.css # Kindle-optimized CSS
+    ├── pdf/                # PDF rendering and metadata extraction
+    └── utils/              # SQLite cache, logging
 ```
 
 ## Trae Skill

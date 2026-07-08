@@ -68,7 +68,14 @@ _AI_MARKER_PATTERNS = [
     (re.compile(r"\s*\[UNCLEAR\]\s*$", re.MULTILINE), ""),
     # Trailing [需校对] marker (AI correction failed validation) -> remove
     (re.compile(r"\s*\[需校对\]\s*$", re.MULTILINE), ""),
+    # Page boundary markers (multimodal review): <!-- page: N --> -> remove
+    (re.compile(r"^<!--\s*page:\s*\d+\s*-->\s*$", re.MULTILINE), ""),
 ]
+
+# Detects unresolved low-confidence markers in book.md. Used by `build_epub`
+# to decide whether to supplement AI review when the OCR stage ran without it.
+# Idempotent: after AI review (or convert one-shot path) the markers are gone.
+_LOW_CONF_MARKER_RE = re.compile(r"^\s*>\[low-confidence\]", re.MULTILINE)
 
 
 def _strip_ai_markers(md_text: str) -> str:
@@ -78,6 +85,7 @@ def _strip_ai_markers(md_text: str) -> str:
       - ``>[low-confidence]`` blockquote prefix (keeps original OCR text)
       - Trailing ``[UNCLEAR]`` markers
       - Trailing ``[需校对]`` markers
+      - ``<!-- page: N -->`` page boundary markers (multimodal review)
 
     This ensures the final EPUB contains only readable text, not
     intermediate review artifacts. Called before passing book.md to Pandoc.
@@ -150,9 +158,7 @@ class ConversionPipeline:
         ph = pdf_sha1(pdf_path)
         ch = cfg_hash(self._cfg.ocr)
         dpi = self._cfg.ocr.dpi
-        self._log.info(
-            "PDF: %d pages, dpi=%d, sha1=%s...", total, dpi, ph[:8]
-        )
+        self._log.info("PDF: %d pages, dpi=%d, sha1=%s...", total, dpi, ph[:8])
 
         cache = self._cache or Cache(self._cfg.cache_db)
         if self._owns_cache:
@@ -163,9 +169,7 @@ class ConversionPipeline:
             if resume:
                 self._log.info("Resume: %d cached pages", len(done))
 
-            page_results = self._ocr_phase(
-                pdf_path, ph, ch, dpi, total, done, cache
-            )
+            page_results = self._ocr_phase(pdf_path, ph, ch, dpi, total, done, cache)
 
         finally:
             if self._owns_cache:
@@ -181,8 +185,15 @@ class ConversionPipeline:
 
         # Markdown assembly (with low-confidence markers + title issues).
         # AI review runs AFTER this stage so it sees the actual structure.
+        # When multimodal review is enabled, emit page boundary markers so
+        # the review stage can map issues back to source page images.
         self._cfg.work_dir.mkdir(parents=True, exist_ok=True)
-        book_md = self._post.to_markdown(page_results, meta, self._cfg.work_dir)
+        emit_markers = (
+            self._cfg.ai_review.enabled and self._cfg.ai_review.multimodal
+        )
+        book_md = self._post.to_markdown(
+            page_results, meta, self._cfg.work_dir, emit_page_markers=emit_markers
+        )
         self._log.info("Markdown written: %s", book_md)
 
         # Export metadata so build_epub can run without the original PDF.
@@ -222,7 +233,8 @@ class ConversionPipeline:
         if cip_meta is not None:
             self._log.info(
                 "CIP metadata extracted: title=%r, author=%r",
-                cip_meta.title, cip_meta.author,
+                cip_meta.title,
+                cip_meta.author,
             )
             # Apply EPUB config defaults (toc_depth, chapter_level).
             cip_meta.toc_depth = self._cfg.epub.toc_depth
@@ -272,8 +284,13 @@ class ConversionPipeline:
         body instead of in the front matter).
         """
         expected_order = [
-            "cover", "frontispiece", "copyright",
-            "preface", "toc", "body", "back_cover",
+            "cover",
+            "frontispiece",
+            "copyright",
+            "preface",
+            "toc",
+            "body",
+            "back_cover",
         ]
         detected_pages: list[BookStructureEntry] = []
         detected_order: list[str] = []
@@ -333,13 +350,11 @@ class ConversionPipeline:
         from pdf2book.review import AIClient
 
         self._log.info("AI markdown review stage (model=%s)", cfg.model)
-        client = AIClient(cfg)
+        client = AIClient(cfg, work_dir=md_path.parent)
         try:
             updated_meta = client.review_markdown(md_path, meta_path, rule_meta)
         except Exception as exc:
-            self._log.warning(
-                "AI markdown review failed (%s); using rule-based results", exc
-            )
+            self._log.warning("AI markdown review failed (%s); using rule-based results", exc)
             return rule_meta
         finally:
             client.close()
@@ -371,13 +386,18 @@ class ConversionPipeline:
         self._log.info("EPUB stage: %s -> %s", md_path, out_path)
 
         # Load metadata: explicit path > sibling meta.md > defaults.
+        # Keep the resolved meta path so the supplemental AI review stage
+        # (below) can pass it to `_ai_markdown_review_stage`.
         if meta_path is not None:
-            book_meta = read_meta_yaml(Path(meta_path))
+            meta_path_resolved: Path | None = Path(meta_path)
+            book_meta = read_meta_yaml(meta_path_resolved)
         else:
             sibling_meta = md_path.parent / "meta.md"
             if sibling_meta.exists():
+                meta_path_resolved = sibling_meta
                 book_meta = read_meta_yaml(sibling_meta)
             else:
+                meta_path_resolved = None
                 self._log.warning("No meta.md found; using default metadata")
                 book_meta = BookMetadata()
 
@@ -412,6 +432,16 @@ class ConversionPipeline:
         # cleaned copy to a temp file (book.epub.md) so the original book.md
         # retains the markers for debugging/manual review.
         original_text = md_path.read_text(encoding="utf-8")
+        # Supplemental AI review: when enabled and book.md still carries
+        # ``>[low-confidence]`` markers (i.e. the OCR stage ran without AI
+        # review, or AI review failed and fell back), run it now so the EPUB
+        # benefits from corrections. Idempotent — if the OCR stage already
+        # cleaned the markers (convert one-shot path, or prior epub run),
+        # the regex finds nothing and this block is skipped.
+        if self._cfg.ai_review.enabled and _LOW_CONF_MARKER_RE.search(original_text):
+            self._log.info("build_epub: 检测到低置信度标记，补做 AI review")
+            book_meta = self._ai_markdown_review_stage(md_path, meta_path_resolved, book_meta)
+            original_text = md_path.read_text(encoding="utf-8")
         cleaned_text = _strip_ai_markers(original_text)
         # TOC linkification fallback: convert "标题／页码" paragraphs into a
         # clickable vertical list. Idempotent — skips when AI review already
@@ -420,9 +450,7 @@ class ConversionPipeline:
         if cleaned_text != original_text:
             cleaned_md = md_path.with_suffix(".epub.md")
             cleaned_md.write_text(cleaned_text, encoding="utf-8")
-            self._log.info(
-                "Stripped AI markers + linkified TOC; using cleaned markdown for EPUB"
-            )
+            self._log.info("Stripped AI markers + linkified TOC; using cleaned markdown for EPUB")
             build_md = cleaned_md
         else:
             build_md = md_path
@@ -476,9 +504,7 @@ class ConversionPipeline:
 
         with self._ocr:
             pages_iter = self._pdf.render_pages(pdf_path, pages_dir)
-            for pg in track(
-                pages_iter, description="OCR", total=total, transient=True
-            ):
+            for pg in track(pages_iter, description="OCR", total=total, transient=True):
                 # Skip pages outside the OCR range (still rendered above).
                 if pg.index < skip_first or pg.index >= last_ocr_index:
                     continue
@@ -491,9 +517,7 @@ class ConversionPipeline:
                         results.append(pr)
                         continue
                     # Cached page missing from DB (rare); fall through to OCR.
-                    self._log.warning(
-                        "page %d marked done but not in cache; re-OCR", pg.index
-                    )
+                    self._log.warning("page %d marked done but not in cache; re-OCR", pg.index)
 
                 pr = self._ocr.recognize(pg.path, pg.index)
                 pr.page_image_path = pg.path

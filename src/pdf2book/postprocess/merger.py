@@ -71,6 +71,23 @@ def _has_toc_entries(text: str) -> bool:
     return sum(1 for line in lines if _TOC_ENTRY_END_RE.search(line.strip())) >= 2
 
 
+def _ends_with_toc_entry(text: str) -> bool:
+    """True if the last non-empty line ends with a TOC page-number entry.
+
+    A single TOC entry like ``"俄狄浦斯的悲剧／136"`` is a complete line,
+    not an open paragraph awaiting continuation — it must not merge into
+    the next page's body text. ``_has_toc_entries`` requires ≥2 entries
+    (for multi-entry TOC blocks), so this function catches the single-entry
+    tail case.
+    """
+    lines = text.strip().split("\n")
+    for line in reversed(lines):
+        stripped = line.strip()
+        if stripped:
+            return bool(_TOC_ENTRY_END_RE.search(stripped))
+    return False
+
+
 def merge_paragraphs(pages: list[PageResult], cfg: PostprocessConfig) -> list[PageResult]:
     """Stitch text elements split across page boundaries.
 
@@ -111,6 +128,7 @@ def merge_paragraphs(pages: list[PageResult], cfg: PostprocessConfig) -> list[Pa
             and not _ends_with_terminator(open_el.text)
             and not _starts_new_block(el.text)
             and not _has_toc_entries(open_el.text)
+            and not _ends_with_toc_entry(open_el.text)
         ):
             open_el.text = _join(open_el.text, el.text)
             el.dropped = True

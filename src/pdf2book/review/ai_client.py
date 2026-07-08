@@ -20,6 +20,7 @@ Ollama, LocalAI, etc.
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 from pathlib import Path
@@ -42,7 +43,10 @@ class AIClient:
     """
 
     def __init__(
-        self, cfg: AIReviewConfig, transport: httpx.BaseTransport | None = None
+        self,
+        cfg: AIReviewConfig,
+        transport: httpx.BaseTransport | None = None,
+        work_dir: Path | None = None,
     ) -> None:
         self.cfg = cfg
         # Optional transport injection (used by tests with httpx.MockTransport).
@@ -50,17 +54,26 @@ class AIClient:
         self._transport = transport
         # Lazily created; None when disabled so we never open a connection.
         self._client: httpx.Client | None = None
+        # Work directory for resolving page images (multimodal review).
+        # When None, multimodal review falls back to text-only with a warning.
+        self._work_dir = work_dir
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def complete(self, prompt: str) -> str:
+    def complete(
+        self, prompt: str, image_paths: list[Path] | None = None
+    ) -> str:
         """Send a chat completion request, return the assistant's text.
 
         Returns empty string when ``cfg.enabled=False`` (no network call).
         Raises ``httpx.HTTPError`` on network/server failure — callers
         should catch and degrade gracefully.
+
+        When ``image_paths`` is non-empty, builds a multimodal content
+        array (text + image_url blocks) for OpenAI-compatible vision APIs.
+        If all images fail to encode, falls back to text-only.
         """
         if not self.cfg.enabled:
             return ""
@@ -71,9 +84,33 @@ class AIClient:
             "Authorization": f"Bearer {self.cfg.api_key}",
             "Content-Type": "application/json",
         }
+
+        content: str | list[dict]
+        if image_paths:
+            content_blocks: list[dict] = [{"type": "text", "text": prompt}]
+            for img_path in image_paths:
+                data_url = _encode_image_to_data_url(img_path)
+                if data_url is not None:
+                    content_blocks.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": data_url},
+                        }
+                    )
+            if len(content_blocks) == 1:
+                _log.warning(
+                    "Multimodal review: all images failed to encode, "
+                    "falling back to text-only"
+                )
+                content = prompt
+            else:
+                content = content_blocks
+        else:
+            content = prompt
+
         body = {
             "model": self.cfg.model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": content}],
             "max_tokens": self.cfg.max_tokens,
             "temperature": 0.0,  # deterministic for校对
         }
@@ -99,14 +136,16 @@ class AIClient:
             )
         return content
 
-    def complete_json(self, prompt: str) -> Any:
+    def complete_json(
+        self, prompt: str, image_paths: list[Path] | None = None
+    ) -> Any:
         """Complete + parse JSON from the response.
 
         Uses ``_parse_json_lenient`` which handles Markdown code fences and
         extracts the first JSON object/array from surrounding prose. Returns
         ``None`` if no JSON could be parsed (caller should treat as failure).
         """
-        text = self.complete(prompt)
+        text = self.complete(prompt, image_paths=image_paths)
         if not text:
             return None
         return _parse_json_lenient(text)
@@ -138,9 +177,29 @@ class AIClient:
             collect_markdown_issues,
         )
 
-        issues = collect_markdown_issues(md_path, meta)
+        max_images = self.cfg.max_images if self.cfg.multimodal else 0
+        issues = collect_markdown_issues(
+            md_path, meta, work_dir=self._work_dir, max_images=max_images
+        )
         prompt = build_review_prompt(issues)
-        corrections = self.complete_json(prompt)
+
+        image_paths: list[Path] | None = None
+        if self.cfg.multimodal:
+            review_images = issues.get("review_images", [])
+            if review_images:
+                image_paths = [item["path"] for item in review_images]
+                _log.info(
+                    "Multimodal review: sending %d page images (model=%s)",
+                    len(image_paths),
+                    self.cfg.model,
+                )
+            elif self._work_dir is None:
+                _log.warning(
+                    "Multimodal review enabled but work_dir not set; "
+                    "falling back to text-only"
+                )
+
+        corrections = self.complete_json(prompt, image_paths=image_paths)
 
         if not isinstance(corrections, dict):
             # AI returned no usable JSON (or returned a non-dict type,
@@ -347,4 +406,38 @@ def _repair_truncated_json(text: str, start: int, open_char: str) -> str | None:
 __all__ = [
     "AIClient",
     "_parse_json_lenient",
+    "_encode_image_to_data_url",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Multimodal helpers
+# ---------------------------------------------------------------------------
+
+_MIME_MAP = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
+
+def _encode_image_to_data_url(image_path: Path) -> str | None:
+    """Encode an image file as a data URL for OpenAI vision API.
+
+    Returns a ``data:{mime};base64,...`` string. Returns None on read
+    failure (caller skips the image).
+    """
+    try:
+        data = image_path.read_bytes()
+    except OSError as exc:
+        _log.warning(
+            "Failed to read image for multimodal review: %s (%s)",
+            image_path,
+            exc,
+        )
+        return None
+    encoded = base64.b64encode(data).decode("ascii")
+    mime = _MIME_MAP.get(image_path.suffix.lower(), "image/png")
+    return f"data:{mime};base64,{encoded}"

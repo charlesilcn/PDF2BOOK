@@ -23,7 +23,7 @@ from pathlib import Path
 
 from rich.progress import track
 
-from pdf2book.config import AppConfig
+from pdf2book.config import AppConfig, isolate_work_dir
 from pdf2book.pipeline import ConversionPipeline
 from pdf2book.utils.logger import setup_logger
 
@@ -51,8 +51,7 @@ def convert_single_pdf(
 
     # Isolate work_dir + cache_db per PDF (avoid cross-PDF file contention
     # when running with workers > 1).
-    cfg.work_dir = cfg.work_dir / stem
-    cfg.cache_db = cfg.work_dir / "cache.db"
+    isolate_work_dir(cfg, stem)
 
     log = setup_logger("INFO")
     pipeline = ConversionPipeline(cfg, log)
@@ -93,7 +92,7 @@ class BatchProcessor:
 
         # Build (pdf, output) pairs so the worker function is self-contained.
         jobs = [
-            (str(pdf), str(output_dir / f"{pdf.stem}.epub"))
+            (str(pdf), str(output_dir / f"{pdf.stem.rstrip()}.epub"))
             for pdf in pdf_paths
         ]
 

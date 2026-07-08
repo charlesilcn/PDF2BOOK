@@ -67,32 +67,15 @@ p + p {
   margin-top: 0.3em;
 }
 
-/* Images: block, centered, fit to screen.
-   Full-page images (cover, frontispiece, copyright) must not exceed
-   the viewport height, otherwise the reader pushes overflow onto a
-   blank second page. We cap height three ways for cross-reader
-   robustness:
-     - `max-height: 95vh`  — modern EPUB3 readers (K8, Apple Books).
-     - `height: 95vh`      — overrides any intrinsic height attribute
-                              so a 1867px-tall PNG doesn't force a
-                              taller page on readers that ignore
-                              `max-height` but honor `height`.
-     - `width: auto`       — keep aspect ratio (do not set both width
-                              and height to fixed units, or the image
-                              distorts).
-   `page-break-inside: avoid` + `page-break-after: avoid` together
-   prevent the reader from inserting a blank page between consecutive
-   full-page images (cover→frontispiece→copyright).
-   `object-fit: contain` is the final safety net on KF8: even if the
-   computed box is slightly larger than the viewport, the image is
-   letterboxed inside it instead of overflowing.
-   The 95% (not 100%) leaves headroom for reader chrome (status bar,
-   page margins) that would otherwise push a 100vh image onto the
-   next page. */
-img {
+/* Full-page images (cover/frontispiece/copyright/illustration/back_cover):
+   PDF page renderings referenced as `pages/page_NNNN.png`. These should
+   fill the viewport since they represent entire PDF pages. 90vh (not
+   95vh) leaves headroom for reader chrome (status bar, margins) to
+   prevent overflow onto a blank second page. */
+img[src*="pages/"] {
   max-width: 100%;
-  max-height: 95vh;
-  height: 95vh;
+  max-height: 90vh;
+  height: 90vh;
   width: auto;
   display: block;
   margin: 0 auto;
@@ -101,16 +84,27 @@ img {
   object-fit: contain;
 }
 
-/* Some older readers ignore `vh` entirely (early KF8, MOBI7 fallback).
-   For those, an explicit `height` in `em` based on a 1.75 line-height
-   body gives ~one screen of content. We use `!important` because
-   reader stylesheets often inject their own img height. This rule is
-   only a hint — readers that honored `max-height: 95vh` already
-   constrained the image and this rule doesn't override `max-height`
-   (only `height`), so the smaller of the two wins. */
+/* Inline images (cropped image regions): referenced as `images/pN_eM.png`.
+   These are OCR-cropped illustrations (QR codes, figures, charts) that
+   should display at their natural size — NOT be stretched to fill the
+   viewport. `height: auto` preserves the original aspect ratio; only
+   `max-height` caps them when they exceed the viewport. */
+img[src*="images/"] {
+  max-width: 100%;
+  max-height: 90vh;
+  height: auto;
+  width: auto;
+  display: block;
+  margin: 0.5em auto;
+  page-break-inside: avoid;
+}
+
+/* Fallback for readers that don't support `[src*=""]` attribute selectors
+   or for images with an explicit height attribute. `height: auto` ensures
+   the image uses its intrinsic size rather than being stretched. */
 img[height] {
   height: auto !important;
-  max-height: 95vh !important;
+  max-height: 90vh !important;
 }
 
 /* Tables: full width, simple borders. */

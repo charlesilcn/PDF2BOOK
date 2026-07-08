@@ -271,6 +271,7 @@ def to_markdown(
     pages: list[PageResult],
     meta: dict | None,
     work_dir: Path,
+    emit_page_markers: bool = False,
 ) -> Path:
     """Assemble a single `book.md` from the post-processed PageResult list.
 
@@ -286,6 +287,13 @@ def to_markdown(
       - table -> raw HTML verbatim (PP's table recognizer emits HTML).
       - formula/display_formula -> `$$ \\n text \\n $$` display math.
       - anything else -> a plain paragraph.
+
+    When ``emit_page_markers=True``, an HTML comment
+    ``<!-- page: N -->`` is inserted before each body page's content.
+    These markers let the AI review stage map low-confidence blocks back
+    to their source page images for multimodal review. They are ignored
+    by Pandoc (HTML comments don't appear in EPUB output) and stripped by
+    ``_strip_ai_markers`` before EPUB build as a safety net.
 
     After block assembly, two Pandoc fenced-div wrappers are applied so the
     Kindle CSS can target chapter and dialogue styling:
@@ -324,6 +332,8 @@ def to_markdown(
         if page.page_type in _IMAGE_RENDER_TYPES:
             blocks.append(f"![](pages/page_{page.page_index:04d}.png)")
             continue
+        if emit_page_markers:
+            blocks.append(f"<!-- page: {page.page_index} -->")
         live = sorted(
             [e for e in page.elements if not e.dropped],
             key=lambda e: e.order_index,
@@ -436,7 +446,7 @@ def _is_paragraph_block(block: str) -> bool:
     """True if `block` is a plain paragraph (not heading/image/table/formula/div)."""
     if not block:
         return False
-    if block.startswith(("#", "!", "$$", ":::", "<table")):
+    if block.startswith(("#", "!", "$$", ":::", "<table", "<!--")):
         return False
     return True
 

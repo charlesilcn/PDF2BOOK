@@ -15,7 +15,10 @@ build/
 *.egg-info/
 *.egg
 
-# Project-specific: work directory (regenerable via `pdf2book ocr --resume`)
+# Project-specific: workspace directory (regenerable via `pdf2book ocr --resume`)
+workspace/
+
+# Project-specific: old/test intermediate directories (regenerable)
 .pdf2book/
 .pdf2book_test/
 
@@ -25,6 +28,10 @@ build/
 # Project-specific: source PDF inputs (external, do not commit)
 PDFeBOOK/
 *.pdf
+
+# Standard folders: keep directory structure visible (content ignored above)
+!inbox/.gitkeep
+!library/.gitkeep
 
 # Tests (excluded from public repo)
 tests/
@@ -42,6 +49,12 @@ Thumbs.db
 .trae/*
 !.trae/skills/
 .trae-html-share-packages/
+
+# Understand-anything knowledge graph cache
+.understand-anything/
+
+# Uploads directory
+.uploads/
 
 # Sensitive files
 *.env

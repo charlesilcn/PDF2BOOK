@@ -1,9 +1,12 @@
 """Configuration models for pdf2book."""
 
+import os
+import re
 from pathlib import Path
 from typing import Literal
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 
@@ -121,14 +124,20 @@ class EpubConfig(BaseModel):
 class AIReviewConfig(BaseModel):
     """AI review configuration (Phase 5).
 
-    Pure-text LLM review (no multimodal). When `enabled=False` the pipeline
-    skips the AI review stage entirely; low-confidence texts keep their
-    `>[low-confidence]` markers in book.md for manual proofreading.
+    LLM review with optional multimodal (vision) support. When
+    ``enabled=False`` the pipeline skips the AI review stage entirely;
+    low-confidence texts keep their ``>[low-confidence]`` markers in
+    book.md for manual proofreading.
 
     The API is OpenAI-compatible (chat/completions with JSON response).
-    Set `api_url` to your endpoint (e.g. "https://api.openai.com/v1/chat/completions"
-    or a local LLM server). `model` defaults to a cheap model since the
+    Set ``api_url`` to your endpoint (e.g. "https://api.openai.com/v1/chat/completions"
+    or a local LLM server). ``model`` defaults to a cheap model since the
     constraint-validation loop keeps quality high even with weaker models.
+
+    When ``multimodal=True``, page images are sent alongside the text
+    prompt for low-confidence OCR correction and title review. Requires a
+    vision-capable model (e.g. gpt-4o-mini). Falls back to text-only on
+    encoding failure or API error.
     """
 
     enabled: bool = False
@@ -148,6 +157,48 @@ class AIReviewConfig(BaseModel):
     # Per-request timeout (seconds). A single review request covers all
     # low-confidence texts in one batch, so this should accommodate large books.
     timeout: float = 120.0
+    # Multimodal vision support (opt-in). When True, page images are
+    # attached to the review prompt for low-confidence OCR correction and
+    # title review. Requires a vision-capable model. When False (default),
+    # review is pure-text only.
+    multimodal: bool = False
+    # Maximum page images per review request. Page images at 300 DPI are
+    # ~2-5MB each; this limits request size and latency. When the number
+    # of issue pages exceeds this, low-confidence pages are prioritized
+    # over title-issue pages.
+    max_images: int = 8
+
+
+_ENV_VAR_RE = re.compile(r"\$\{([^}:-]+)(?::-([^}]*))?\}")
+
+
+def _expand_env_vars(value: str) -> str:
+    """Expand ${VAR:-default} environment variable references in a string.
+
+    Example: "${PDF2BOOK_API_KEY:-}" → os.environ["PDF2BOOK_API_KEY"] or ""
+    """
+    if not isinstance(value, str):
+        return value
+
+    def replace(match: re.Match[str]) -> str:
+        var_name = match.group(1)
+        default = match.group(2) or ""
+        return os.environ.get(var_name, default)
+
+    return _ENV_VAR_RE.sub(replace, value)
+
+
+def _expand_env_vars_in_dict(d: dict) -> dict:
+    """Recursively expand environment variables in dict values."""
+    result = {}
+    for key, value in d.items():
+        if isinstance(value, dict):
+            result[key] = _expand_env_vars_in_dict(value)
+        elif isinstance(value, str):
+            result[key] = _expand_env_vars(value)
+        else:
+            result[key] = value
+    return result
 
 
 class AppConfig(BaseModel):
@@ -157,8 +208,12 @@ class AppConfig(BaseModel):
     postprocess: PostprocessConfig = Field(default_factory=PostprocessConfig)
     epub: EpubConfig = Field(default_factory=EpubConfig)
     ai_review: AIReviewConfig = Field(default_factory=AIReviewConfig)
-    cache_db: Path = Path(".pdf2book/cache.db")
-    work_dir: Path = Path(".pdf2book")
+    # Standard three-folder layout: inbox (drop PDFs) -> library (EPUBs)
+    # -> workspace (per-book intermediate artifacts, visible for debugging).
+    input_dir: Path = Path("inbox")
+    output_dir: Path = Path("library")
+    cache_db: Path = Path("workspace/cache.db")
+    work_dir: Path = Path("workspace")
     # Batch processing parallelism (Phase 4). Each worker is a subprocess
     # that loads its own OCR model — memory scales linearly with workers.
     # RapidOCR ~50MB/worker (high concurrency OK); PaddlePP ~1.5GB/worker
@@ -167,12 +222,53 @@ class AppConfig(BaseModel):
 
     @classmethod
     def load(cls, path: Path) -> "AppConfig":
-        """Load config from a YAML file."""
+        """Load config from a YAML file.
+
+        Applies AI review auto-enable rule: when ``ai_review.api_key`` is
+        non-empty and ``enabled`` was not explicitly set in the YAML, AI
+        review is turned on automatically so users get "configure api_key →
+        one command works" behavior. An explicit ``enabled: false`` (Skill
+        path) is respected and never overridden.
+        """
+        load_dotenv(Path(path).parent / ".env", override=False)
         with open(path, encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-        return cls.model_validate(data)
+            raw = yaml.safe_load(f) or {}
+        raw = _expand_env_vars_in_dict(raw)
+        cfg = cls.model_validate(raw)
+        cfg._auto_enable_ai_review(raw)
+        return cfg
+
+    def _auto_enable_ai_review(self, raw: dict) -> None:
+        """Enable AI review when api_key is set and enabled was not explicit.
+
+        Rule matrix:
+          - ``enabled: true``              → stays True
+          - ``enabled: false`` + api_key   → stays False (Skill escape hatch)
+          - ``enabled`` absent + api_key   → auto True (CLI mode)
+          - ``enabled`` absent + no key    → stays False (default/Skill)
+        """
+        ai_raw = raw.get("ai_review") or {}
+        if "enabled" not in ai_raw and self.ai_review.api_key:
+            self.ai_review.enabled = True
 
     @classmethod
     def default(cls) -> "AppConfig":
         """Return default config."""
         return cls()
+
+
+def isolate_work_dir(cfg: AppConfig, pdf_stem: str) -> None:
+    """Isolate ``work_dir`` and ``cache_db`` under a per-book subdirectory.
+
+    Must be called BEFORE ``ConversionPipeline(cfg)`` construction —
+    ``PostProcessor.__init__`` captures ``cfg.work_dir`` by value at
+    construction time, so later mutations won't propagate to image
+    extraction (``images.extract_images`` uses the captured path).
+
+    Trailing whitespace is stripped from ``pdf_stem`` to avoid Windows
+    path issues (directory names with trailing spaces cause SQLite
+    ``unable to open database file`` errors).
+    """
+    clean_stem = pdf_stem.rstrip()
+    cfg.work_dir = cfg.work_dir / clean_stem
+    cfg.cache_db = cfg.work_dir / "cache.db"

@@ -43,6 +43,10 @@ from pdf2book.review.constraints import (
 # Low-confidence block prefix in book.md (from structure.to_markdown).
 _LOW_CONF_PREFIX = ">[low-confidence] "
 
+# Page boundary marker: <!-- page: N --> (emitted by structure.to_markdown
+# when emit_page_markers=True, for multimodal review page-image mapping).
+_PAGE_MARKER_RE = re.compile(r"^<!--\s*page:\s*(\d+)\s*-->\s*$")
+
 # Heading pattern: matches H1-H6 ("# title" through "###### title").
 # Captures: group(1)=hashes, group(2)=title, group(3)=anchor (optional).
 # H1 retains a dedicated fast-path regex for `_detect_toc_issues` and
@@ -71,6 +75,8 @@ _CONTEXT_LINES = 3
 def collect_markdown_issues(
     md_path: Path,
     meta: BookMetadata | None,
+    work_dir: Path | None = None,
+    max_images: int = 0,
 ) -> dict:
     """Scan book.md for issues that need AI review.
 
@@ -82,11 +88,33 @@ def collect_markdown_issues(
       - ``toc_issues``: list of TOC-vs-H1 mismatch items
       - ``book_structure``: BookStructure from meta (or None)
       - ``metadata``: dict with ``current`` metadata fields
+      - ``review_images``: list of {page_index, path} for multimodal review
 
     Line numbers are 0-based (matching Python list indices) so the applier
     can directly index into the lines list.
+
+    When ``work_dir`` and ``max_images > 0`` are provided, page boundary
+    markers (``<!-- page: N -->``) are parsed to attach ``page_index`` and
+    ``page_image_path`` to low-confidence and title items, and a
+    ``review_images`` list (deduplicated, limited to ``max_images``) is
+    returned for multimodal review.
     """
     lines = md_path.read_text(encoding="utf-8").splitlines()
+
+    # Pre-scan page markers to build line_index → page_index mapping.
+    page_at_line: dict[int, int | None] = {}
+    current_page: int | None = None
+    for i, line in enumerate(lines):
+        m = _PAGE_MARKER_RE.match(line)
+        if m:
+            current_page = int(m.group(1))
+        page_at_line[i] = current_page
+
+    def _resolve_page_image(page_idx: int | None) -> Path | None:
+        if page_idx is None or work_dir is None:
+            return None
+        candidate = work_dir / "pages" / f"page_{page_idx:04d}.png"
+        return candidate if candidate.exists() else None
 
     low_confidence_items: list[dict] = []
     title_items: list[dict] = []
@@ -100,6 +128,7 @@ def collect_markdown_issues(
             context_before = _extract_context(lines, i, direction="before")
             context_after = _extract_context(lines, i, direction="after")
             constraints = extract_constraints(text, context_before, context_after)
+            page_idx = page_at_line.get(i)
             low_confidence_items.append(
                 {
                     "id": f"LC-{len(low_confidence_items) + 1}",
@@ -113,6 +142,8 @@ def collect_markdown_issues(
                         "max_edit_distance": constraints.max_edit_distance,
                         "wildcard_count": constraints.wildcard_count,
                     },
+                    "page_index": page_idx,
+                    "page_image_path": _resolve_page_image(page_idx),
                 }
             )
 
@@ -129,6 +160,7 @@ def collect_markdown_issues(
             issue = _detect_title_issue(title, lines, i)
             if level == 1 or issue != "normal":
                 chapter_context = _extract_chapter_context(lines, i)
+                page_idx = page_at_line.get(i)
                 title_items.append(
                     {
                         "id": f"T-{len(title_items) + 1}",
@@ -139,6 +171,8 @@ def collect_markdown_issues(
                         "raw_line": line,
                         "issue": issue,
                         "context": chapter_context,
+                        "page_index": page_idx,
+                        "page_image_path": _resolve_page_image(page_idx),
                     }
                 )
 
@@ -153,6 +187,27 @@ def collect_markdown_issues(
 
     # TOC linkification data: region lines + H1 anchors for AI to linkify.
     toc_linkification = _collect_toc_linkification(lines, title_items)
+
+    # Collect review images for multimodal review (deduplicated + limited).
+    # Priority: low-confidence pages first, then title-issue pages.
+    review_images: list[dict] = []
+    if max_images > 0:
+        seen_pages: set[int] = set()
+        for item in low_confidence_items:
+            pidx = item.get("page_index")
+            pimg = item.get("page_image_path")
+            if pidx is not None and pimg is not None and pidx not in seen_pages:
+                seen_pages.add(pidx)
+                review_images.append({"page_index": pidx, "path": pimg})
+        for item in title_items:
+            if item.get("issue") == "normal":
+                continue
+            pidx = item.get("page_index")
+            pimg = item.get("page_image_path")
+            if pidx is not None and pimg is not None and pidx not in seen_pages:
+                seen_pages.add(pidx)
+                review_images.append({"page_index": pidx, "path": pimg})
+        review_images = review_images[:max_images]
 
     # Metadata
     metadata_current: dict = {}
@@ -177,6 +232,7 @@ def collect_markdown_issues(
         "toc_linkification": toc_linkification,
         "book_structure": book_structure,
         "metadata": {"current": metadata_current},
+        "review_images": review_images,
     }
 
 
@@ -264,7 +320,7 @@ def _extract_chapter_context(lines: list[str], title_idx: int) -> str:
 
 
 # Lines that should never be treated as paragraph content.
-_NON_BODY_PREFIXES = ("#", "!", ":::", "$$", "<table", _LOW_CONF_PREFIX)
+_NON_BODY_PREFIXES = ("#", "!", ":::", "$$", "<table", "<!--", _LOW_CONF_PREFIX)
 
 
 def _is_non_body_line(stripped: str) -> bool:
@@ -604,15 +660,16 @@ def build_review_prompt(issues: dict) -> str:
     if low_conf:
         trimmed = []
         for item in low_conf:
-            trimmed.append(
-                {
-                    "id": item["id"],
-                    "original_text": item["original_text"],
-                    "context_before": item.get("context_before", ""),
-                    "context_after": item.get("context_after", ""),
-                    "constraints": item["constraints"],
-                }
-            )
+            entry = {
+                "id": item["id"],
+                "original_text": item["original_text"],
+                "context_before": item.get("context_before", ""),
+                "context_after": item.get("context_after", ""),
+                "constraints": item["constraints"],
+            }
+            if item.get("page_index") is not None:
+                entry["page_index"] = item["page_index"]
+            trimmed.append(entry)
         sections.append(
             dedent(
                 f"""\
@@ -622,12 +679,14 @@ def build_review_prompt(issues: dict) -> str:
                 - `original_text`：OCR 识别结果（可能含通配符 * ? □）
                 - `context_before` / `context_after`：前后上下文
                 - `constraints`：硬性约束（必须满足）
+                - `page_index`：源页面编号（可对照附图识别原文）
 
                 ### 校对规则
                 1. 只填充通配符位置，preserved_chars 列出的字符必须原样保留。
                 2. corrected 的字符数必须 ≤ constraints.max_length。
                 3. 编辑距离必须 ≤ constraints.max_edit_distance。
                 4. 根据上下文判断通配符处应填什么字。不确定时输出 "[UNCLEAR]"。
+                   如有附图，请结合图片内容判断 OCR 乱码处的正确文字。
 
                 ### 输入数据
                 {json.dumps(trimmed, ensure_ascii=False, indent=2)}
@@ -647,6 +706,8 @@ def build_review_prompt(issues: dict) -> str:
             }
             if item["issue"] != "normal":
                 entry["context"] = item.get("context", "")
+            if item.get("page_index") is not None:
+                entry["page_index"] = item["page_index"]
             title_payload.append(entry)
 
         sections.append(
@@ -818,6 +879,31 @@ def build_review_prompt(issues: dict) -> str:
 
                 ### 输入数据
                 {json.dumps(toc_link, ensure_ascii=False, indent=2)}
+                """
+            )
+        )
+
+    # --- Image attachment note (multimodal) ---
+    review_images = issues.get("review_images", [])
+    if review_images:
+        img_lines = []
+        for idx, img in enumerate(review_images, 1):
+            filename = Path(img["path"]).name
+            img_lines.append(f"| {idx} | {filename} | 第{img['page_index']}页 |")
+        sections.append(
+            dedent(
+                f"""\
+                ## 附图说明
+
+                本次审查附带 {len(review_images)} 张页面图片（按顺序提供），
+                可用于辅助判断低置信度文本和标题问题：
+
+                | 序号 | 文件名 | 页码 |
+                |------|--------|------|
+                {chr(10).join(img_lines)}
+
+                各低置信度文本和标题条目中的 `page_index` 字段对应上述图片页码。
+                请结合图片内容判断 OCR 乱码处的正确文字。
                 """
             )
         )

@@ -7,8 +7,8 @@ Usage:
     python scripts/e2e_test.py <pdf_path> [--config CONFIG] [--output OUT] [--report REPORT]
 
 If --config is omitted, uses default AppConfig (no AI review).
-If --output is omitted, writes to <work_dir>/output.epub.
-If --report is omitted, writes to <work_dir>/test_report.json.
+If --output is omitted, writes to library/{stem}.epub.
+If --report is omitted, writes to workspace/{stem}/test_report.json.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from pdf2book.config import AppConfig
+from pdf2book.config import AppConfig, isolate_work_dir
 from pdf2book.pipeline import ConversionPipeline
 
 logging.basicConfig(
@@ -53,8 +53,11 @@ def main() -> None:
         sys.exit(1)
 
     cfg = AppConfig.load(args.config) if args.config else AppConfig.default()
+    # Isolate work_dir per book (matches CLI behavior so workspace/{stem}/
+    # contains this run's intermediate artifacts alongside the report).
+    isolate_work_dir(cfg, pdf_path.stem)
     work_dir = Path(cfg.work_dir)
-    output_epub = args.output or (work_dir / "output.epub")
+    output_epub = args.output or (Path("library") / f"{pdf_path.stem}.epub")
     report_path = args.report or (work_dir / "test_report.json")
 
     report: dict = {

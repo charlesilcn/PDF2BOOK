@@ -67,9 +67,12 @@ class PostProcessor:
         pages: list[PageResult],
         meta: dict | None,
         work_dir: Path | None = None,
+        emit_page_markers: bool = False,
     ) -> Path:
         """Assemble `book.md` from post-processed pages."""
-        return structure.to_markdown(pages, meta, work_dir or self._work_dir)
+        return structure.to_markdown(
+            pages, meta, work_dir or self._work_dir, emit_page_markers
+        )
 
 
 __all__ = ["PostProcessor"]
