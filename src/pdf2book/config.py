@@ -147,12 +147,18 @@ class AIReviewConfig(BaseModel):
     # 8192 accommodates large books with many title/low-confidence fixes.
     # 4096 was found to truncate mid-JSON on books with ~25+ too_short
     # titles, causing _parse_json_lenient to return a partial list instead
-    # of the expected dict, silently skipping all corrections.
+    # of the expected dict, silently skipping all corrections. Each batch
+    # is small (5 items), so valid JSON is ~200-500 tokens; the extra headroom
+    # absorbs occasional verbose model output before truncation triggers a
+    # retry via the batch-splitting mechanism below.
     max_tokens: int = 8192
-    # Constraint-validation retry loop: if AI correction violates constraints
-    # (edit distance, char count, preserved chars), the violation is fed back
-    # to the AI for a retry. After `max_retries` failures the original text
-    # is kept with a [需校对] marker.
+    # Truncation retry depth: when finish_reason="length", the batch is split
+    # in half and each half is retried recursively, up to this many levels.
+    # With max_retries=3, a 5-item batch can be split 3 times (5→2+3→1+1+1+2→
+    # all singletons), so even severely truncation-prone batches eventually
+    # produce results. Originally documented as a constraint-validation
+    # retry loop; that feature was removed when the pipeline switched to
+    # Markdown-based review, and the field was repurposed for batch retry.
     max_retries: int = 3
     # Per-request timeout (seconds). A single review request covers all
     # low-confidence texts in one batch, so this should accommodate large books.

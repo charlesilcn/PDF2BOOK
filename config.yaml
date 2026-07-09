@@ -28,12 +28,17 @@ epub:
   toc_depth: 3
   chapter_level: 3
 ai_review:
-  api_url: ""
-  api_key: ""
+  api_url: ${PDF2BOOK_API_URL:-https://token.sensenova.cn}
+  api_key: ${PDF2BOOK_API_KEY:-}
   model: sensenova-6.7-flash-lite
+  # 8192: 每批次 JSON 通常 200-500 tokens，但模型有时会生成大量非 JSON
+  # 解释文字。8192 给正常 JSON 留足余量；截断时由 _process_batch_recursive
+  # 自动把批次对半切重试（受 max_retries 限制），所以截断不会丢修正。
   max_tokens: 8192
+  # 截断重试深度：finish_reason=length 时把批次对半切再重试，最多递归
+  # 这么多层。每层把当前批次一分为二，所以 3 层足以把 5 项批次拆到单项。
   max_retries: 3
-  timeout: 120.0
+  timeout: 90.0
   # 多模态视觉审查（需视觉模型如 gpt-4o-mini）
   multimodal: true
   max_images: 8

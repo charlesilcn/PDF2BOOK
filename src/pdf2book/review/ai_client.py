@@ -75,8 +75,24 @@ class AIClient:
         array (text + image_url blocks) for OpenAI-compatible vision APIs.
         If all images fail to encode, falls back to text-only.
         """
+        content, _ = self._post_chat(prompt, image_paths=image_paths)
+        return content
+
+    def _post_chat(
+        self, prompt: str, image_paths: list[Path] | None = None
+    ) -> tuple[str, str | None]:
+        """Send a chat completion request, return (content, finish_reason).
+
+        ``finish_reason`` is ``None`` when not provided by the API. Common
+        values: ``"stop"`` (normal), ``"length"`` (truncated by max_tokens),
+        ``"content_filter"`` (blocked). Callers use ``finish_reason`` to
+        decide whether to retry a truncated batch via splitting.
+
+        Returns ``("", None)`` when ``cfg.enabled=False``. Raises
+        ``httpx.HTTPError`` on network/server failure.
+        """
         if not self.cfg.enabled:
-            return ""
+            return "", None
 
         client = self._ensure_client()
         url = f"{self.cfg.api_url.rstrip('/')}/v1/chat/completions"
@@ -120,21 +136,17 @@ class AIClient:
         # OpenAI shape: {"choices": [{"message": {"content": "..."}}]}
         choices = data.get("choices") or []
         if not choices:
-            return ""
+            return "", None
         choice = choices[0]
-        content = choice.get("message", {}).get("content", "") or ""
-        # Detect truncation: if finish_reason is "length", the output was
-        # cut off by max_tokens. Log a warning so the user knows to bump
-        # max_tokens or shrink the prompt.
+        content_str = choice.get("message", {}).get("content", "") or ""
         finish_reason = choice.get("finish_reason")
         if finish_reason == "length":
             _log.warning(
                 "AI response truncated (finish_reason=length, "
-                "max_tokens=%d). Consider increasing ai_review.max_tokens "
-                "or reducing prompt size.",
+                "max_tokens=%d). Batch will be split and retried.",
                 self.cfg.max_tokens,
             )
-        return content
+        return content_str, finish_reason
 
     def complete_json(
         self, prompt: str, image_paths: list[Path] | None = None
@@ -145,10 +157,10 @@ class AIClient:
         extracts the first JSON object/array from surrounding prose. Returns
         ``None`` if no JSON could be parsed (caller should treat as failure).
         """
-        text = self.complete(prompt, image_paths=image_paths)
-        if not text:
+        content, _ = self._post_chat(prompt, image_paths=image_paths)
+        if not content:
             return None
-        return _parse_json_lenient(text)
+        return _parse_json_lenient(content)
 
     def review_markdown(
         self,
@@ -158,87 +170,221 @@ class AIClient:
     ) -> BookMetadata:
         """Review and correct ``book.md`` after markdown generation.
 
+        Uses **batched API calls**: the full issues set is split into
+        smaller batches (low-confidence texts, title chunks of 15,
+        decoration candidates, structure tasks) so each API response
+        stays well within the model's output token limit. Results from
+        all batches are merged before being applied to ``book.md``.
+
         Flow:
           1. ``collect_markdown_issues(md_path, meta)`` → issues dict
-          2. ``build_review_prompt(issues)`` → prompt string
-          3. ``complete_json(prompt)`` → corrections dict
-          4. ``apply_markdown_corrections(...)`` → updated BookMetadata
+          2. ``build_review_batches(issues)`` → list of (sub-issues, images)
+          3. For each batch: ``build_review_prompt`` + ``complete_json``
+          4. ``merge_corrections(results)`` → combined corrections dict
+          5. ``apply_markdown_corrections(...)`` → updated BookMetadata
 
-        Returns the updated BookMetadata. On AI disabled or failure, returns
-        the original meta unchanged (``book.md`` keeps its low-confidence
-        markers for manual proofreading).
+        Returns the updated BookMetadata. On AI disabled or all batches
+        failing, returns the original meta unchanged.
         """
         if not self.cfg.enabled:
             return meta
 
         from pdf2book.review.markdown_review import (
             apply_markdown_corrections,
+            build_review_batches,
             build_review_prompt,
             collect_markdown_issues,
+            merge_corrections,
         )
 
         max_images = self.cfg.max_images if self.cfg.multimodal else 0
+        if self.cfg.multimodal and self._work_dir is None:
+            _log.warning(
+                "Multimodal review enabled but work_dir not set; "
+                "falling back to text-only review"
+            )
         issues = collect_markdown_issues(
             md_path, meta, work_dir=self._work_dir, max_images=max_images
         )
-        prompt = build_review_prompt(issues)
 
-        image_paths: list[Path] | None = None
-        if self.cfg.multimodal:
-            review_images = issues.get("review_images", [])
-            if review_images:
-                image_paths = [item["path"] for item in review_images]
-                _log.info(
-                    "Multimodal review: sending %d page images (model=%s)",
-                    len(image_paths),
-                    self.cfg.model,
-                )
-            elif self._work_dir is None:
-                _log.warning(
-                    "Multimodal review enabled but work_dir not set; "
-                    "falling back to text-only"
-                )
+        batches = build_review_batches(
+            issues, max_images=max_images, multimodal=self.cfg.multimodal
+        )
 
-        corrections = self.complete_json(prompt, image_paths=image_paths)
+        n_titles = len(issues.get("title_candidates", []))
+        n_lc = len(issues.get("low_confidence_texts", []))
+        n_deco = len(issues.get("decoration_candidates", []))
+        _log.info(
+            "AI markdown review stage: %d batches "
+            "(titles=%d, low_conf=%d, decoration=%d, model=%s)",
+            len(batches),
+            n_titles,
+            n_lc,
+            n_deco,
+            self.cfg.model,
+        )
 
-        if not isinstance(corrections, dict):
-            # AI returned no usable JSON (or returned a non-dict type,
-            # which happens when the response is truncated mid-array and
-            # _parse_json_lenient salvages an inner array). Log details
-            # so the user can diagnose (usually: increase max_tokens).
-            corrections_type = type(corrections).__name__ if corrections is not None else "None"
-            n_titles = len(issues.get("title_candidates", []))
-            n_lc = len(issues.get("low_confidence_texts", []))
+        all_results: list[dict] = []
+        n_batches_succeeded = 0
+        for i, batch in enumerate(batches, 1):
+            _log.info(
+                "  batch %d/%d: %s, %d images",
+                i,
+                len(batches),
+                batch["label"],
+                len(batch["image_paths"]),
+            )
+            results = self._process_batch_recursive(
+                batch, i, len(batches),
+            )
+            if results:
+                n_batches_succeeded += 1
+            all_results.extend(results)
+
+        if not all_results:
             _log.warning(
-                "AI review returned %s (expected dict). Prompt had "
-                "%d titles + %d low-confidence texts. "
-                "Try increasing ai_review.max_tokens.",
-                corrections_type,
-                n_titles,
-                n_lc,
+                "All %d AI review batches failed; using rule-based results",
+                len(batches),
             )
             return meta
+
+        corrections = merge_corrections(all_results)
 
         n_fixes = (
             len(corrections.get("low_confidence_fixes", []))
             + len(corrections.get("title_fixes", []))
             + len(corrections.get("paragraph_fixes", []))
             + len(corrections.get("chapter_fixes", []))
+            + len(corrections.get("decoration_fixes", []))
         )
+        # `n_batches_succeeded` counts original batches that produced at
+        # least one result (possibly via truncation-triggered splitting),
+        # so it never exceeds `len(batches)`. `len(all_results)` may be
+        # larger when splits occurred; we log it as a secondary stat.
         _log.info(
-            "AI review applied: %d fixes (titles=%d, low_conf=%d, "
-            "paragraph=%d, chapter=%d)",
+            "AI review applied: %d fixes across %d/%d batches "
+            "(titles=%d, low_conf=%d, paragraph=%d, chapter=%d, decoration=%d, "
+            "split_results=%d)",
             n_fixes,
+            n_batches_succeeded,
+            len(batches),
             len(corrections.get("title_fixes", [])),
             len(corrections.get("low_confidence_fixes", [])),
             len(corrections.get("paragraph_fixes", [])),
             len(corrections.get("chapter_fixes", [])),
+            len(corrections.get("decoration_fixes", [])),
+            len(all_results) - n_batches_succeeded,
         )
 
         updated_meta = apply_markdown_corrections(
             md_path, meta_path, corrections, issues
         )
         return updated_meta
+
+    def _process_batch_recursive(
+        self,
+        batch: dict,
+        batch_idx: int,
+        total_batches: int,
+        depth: int = 0,
+    ) -> list[dict]:
+        """Process a batch with retry-on-truncation.
+
+        On truncation (``finish_reason="length"``), if the batch carries
+        splittable items (``low_confidence_texts``, ``title_candidates``,
+        or ``decoration_candidates``), the batch is split in half and each
+        half is retried recursively up to ``cfg.max_retries`` depth. With
+        ``max_retries=3`` a 5-item batch can be split three times
+        (5→2+3→1+1+1+2→all singletons), so even heavily truncation-prone
+        batches eventually produce results. Non-splittable batches
+        (structure tasks, single-item batches) are skipped on truncation.
+
+        Returns a list of result dicts (may be empty if the batch failed
+        and could not be salvaged by splitting).
+        """
+        from pdf2book.review.markdown_review import build_review_prompt
+
+        batch_issues = batch["issues"]
+        batch_images = batch["image_paths"]
+        label = batch["label"]
+        indent = "  " * (depth + 1)
+
+        prompt = build_review_prompt(batch_issues)
+
+        try:
+            content, finish_reason = self._post_chat(
+                prompt, image_paths=batch_images or None,
+            )
+        except Exception as exc:
+            _log.warning(
+                "%sbatch %d/%d (%s) failed (%s); skipping",
+                indent, batch_idx, total_batches, label, exc,
+            )
+            return []
+
+        # Truncation detected — split the batch and retry each half.
+        if finish_reason == "length" and depth < self.cfg.max_retries:
+            splittable_key: str | None = None
+            for key in (
+                "low_confidence_texts",
+                "title_candidates",
+                "decoration_candidates",
+            ):
+                items = batch_issues.get(key, [])
+                if len(items) > 1:
+                    splittable_key = key
+                    break
+
+            if splittable_key is not None:
+                items = batch_issues[splittable_key]
+                mid = len(items) // 2
+                _log.warning(
+                    "%sbatch %d/%d (%s) truncated; splitting into "
+                    "%d + %d items (retry %d/%d)",
+                    indent, batch_idx, total_batches, label,
+                    mid, len(items) - mid, depth + 1, self.cfg.max_retries,
+                )
+                results: list[dict] = []
+                for split_idx, split_items in enumerate(
+                    (items[:mid], items[mid:]), 1,
+                ):
+                    if not split_items:
+                        continue
+                    split_issues = {**batch_issues, splittable_key: split_items}
+                    split_batch = {
+                        "issues": split_issues,
+                        # Decoration batches may carry images matched to
+                        # the original item set; passing the full list to
+                        # both halves is harmless (unused images ignored).
+                        "image_paths": batch_images,
+                        "label": f"{label} (split {split_idx})",
+                    }
+                    results.extend(
+                        self._process_batch_recursive(
+                            split_batch, batch_idx, total_batches, depth + 1,
+                        )
+                    )
+                return results
+            else:
+                _log.warning(
+                    "%sbatch %d/%d (%s) truncated but not splittable; "
+                    "skipping",
+                    indent, batch_idx, total_batches, label,
+                )
+                return []
+
+        result = _parse_json_lenient(content) if content else None
+        if not isinstance(result, dict):
+            result_type = (
+                type(result).__name__ if result is not None else "None"
+            )
+            _log.warning(
+                "%sbatch %d/%d (%s): returned %s, skipping",
+                indent, batch_idx, total_batches, label, result_type,
+            )
+            return []
+
+        return [result]
 
     def close(self) -> None:
         """Close the underlying httpx client. Safe to call multiple times."""

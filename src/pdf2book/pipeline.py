@@ -49,6 +49,7 @@ from pdf2book.epub.metadata import (
     write_meta_yaml,
 )
 from pdf2book.epub.toc_links import linkify_toc_entries
+from pdf2book.postprocess.decorations import strip_decorations
 from pdf2book.ocr.base import OCRBackend, make_ocr_backend
 from pdf2book.ocr.models import PageResult
 from pdf2book.pdf.extractor import PDFExtractor
@@ -127,6 +128,13 @@ class ConversionPipeline:
         # no explicit `--cover` is provided, so the EPUB cover matches the
         # actual cover page rather than a hardcoded `page_0000.png`.
         self._detected_cover: Path | None = None
+        # Tracks whether `run_to_markdown` already ran AI review in this
+        # pipeline instance. When True, `build_epub` skips its supplemental
+        # AI review pass — re-running 15 batches because a few low-confidence
+        # markers survived the first run wastes ~7 minutes for little gain
+        # (failed batches tend to fail again). Standalone `build_epub` calls
+        # (no prior `run_to_markdown`) still trigger supplemental review.
+        self._ai_review_completed: bool = False
 
     # ------------------------------------------------------------------
     # Stage 1: PDF -> Markdown
@@ -346,6 +354,13 @@ class ConversionPipeline:
         if not cfg.enabled:
             return rule_meta
 
+        # Mark that AI review has run in this pipeline instance, so
+        # `build_epub` knows to skip its supplemental review pass. Set
+        # before the actual call so it's True even on failure (re-running
+        # failed batches wastes time; better to keep markers for manual
+        # proofreading).
+        self._ai_review_completed = True
+
         # Lazy import to avoid loading review module when disabled.
         from pdf2book.review import AIClient
 
@@ -435,22 +450,47 @@ class ConversionPipeline:
         # Supplemental AI review: when enabled and book.md still carries
         # ``>[low-confidence]`` markers (i.e. the OCR stage ran without AI
         # review, or AI review failed and fell back), run it now so the EPUB
-        # benefits from corrections. Idempotent — if the OCR stage already
-        # cleaned the markers (convert one-shot path, or prior epub run),
-        # the regex finds nothing and this block is skipped.
-        if self._cfg.ai_review.enabled and _LOW_CONF_MARKER_RE.search(original_text):
+        # benefits from corrections. Skipped when `run_to_markdown` already
+        # ran AI review in this pipeline instance (`_ai_review_completed`),
+        # because re-running 15 batches for a few surviving markers wastes
+        # ~7 minutes with little gain — failed batches tend to fail again.
+        # Standalone `build_epub` (no prior `run_to_markdown`) still runs it.
+        if (
+            self._cfg.ai_review.enabled
+            and not self._ai_review_completed
+            and _LOW_CONF_MARKER_RE.search(original_text)
+        ):
             self._log.info("build_epub: 检测到低置信度标记，补做 AI review")
             book_meta = self._ai_markdown_review_stage(md_path, meta_path_resolved, book_meta)
             original_text = md_path.read_text(encoding="utf-8")
+        elif (
+            self._cfg.ai_review.enabled
+            and self._ai_review_completed
+            and _LOW_CONF_MARKER_RE.search(original_text)
+        ):
+            n_markers = len(_LOW_CONF_MARKER_RE.findall(original_text))
+            self._log.info(
+                "build_epub: %d 个低置信度标记残留（AI review 已跑过，跳过补做；"
+                "标记将保留在 book.md 供人工校对，EPUB 中会被剥离）",
+                n_markers,
+            )
         cleaned_text = _strip_ai_markers(original_text)
         # TOC linkification fallback: convert "标题／页码" paragraphs into a
         # clickable vertical list. Idempotent — skips when AI review already
         # produced a `::: {.toc-list}` block or no TOC region is found.
         cleaned_text = linkify_toc_entries(cleaned_text)
+        # Decoration stripping fallback: remove repeated decorative images
+        # (chapter dividers, page headers, separator bars) that carry zero
+        # information. Idempotent by construction — build_epub re-reads the
+        # original book.md each call, so the same input yields the same output.
+        cleaned_text = strip_decorations(cleaned_text, work_dir=md_path.parent)
         if cleaned_text != original_text:
             cleaned_md = md_path.with_suffix(".epub.md")
             cleaned_md.write_text(cleaned_text, encoding="utf-8")
-            self._log.info("Stripped AI markers + linkified TOC; using cleaned markdown for EPUB")
+            self._log.info(
+                "Stripped AI markers + linkified TOC + stripped decorations; "
+                "using cleaned markdown for EPUB"
+            )
             build_md = cleaned_md
         else:
             build_md = md_path

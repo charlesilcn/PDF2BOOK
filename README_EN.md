@@ -32,6 +32,8 @@ Traditional conversion tools only "mechanically transport" content. PDF2BOOK let
 - **Three-tier confidence marking** — Text classified as normal / low-confidence / dropped based on OCR recognition confidence; low-confidence text is preserved and marked for proofreading
 - **AI review pipeline** — Auto-enables when `api_key` is set in `config.yaml`; LLM proofreads low-confidence text, fixes headings, extracts metadata, validates book structure; `epub` stage supports supplemental review (idempotent)
 - **Automatic TOC linking** — Converts "title／page-number" format TOC into clickable vertical link lists that jump to corresponding chapters
+- **Decoration image stripping** — Detects repeated decorative images (chapter dividers, flourishes) via perceptual hash (pHash) clustering and strips them from the EPUB; protects functional images (QR codes/barcodes) from misidentification
+- **Multimodal visual review** — AI review can optionally attach page images to assist low-confidence text and title proofreading (requires a vision model like gpt-4o-mini)
 - **Batch processing** — `batch` subcommand converts all PDFs in a directory in parallel, each with independent work directory and cache
 - **Resume support** — SQLite cache stores OCR results; `--resume` skips completed pages
 - **Kindle-optimized typography** — Built-in `kindle.css`, `chapter_level` controls chapter granularity, each story/chapter gets its own page
@@ -339,7 +341,26 @@ ai_review:
   api_key: ""               # Fill in to auto-enable AI review (no need for enabled: true)
   model: "gpt-4o-mini"      # Model name (constraint validation loop ensures quality; cheap models OK)
   max_tokens: 8192          # Response token cap (large books need 8192 to avoid truncation)
+  multimodal: false         # Multimodal visual review (requires vision model, sends page images)
+  max_images: 8             # Max page images per review request
 ```
+
+**Environment variable configuration**: API keys can be managed via `.env` file to avoid hardcoding in `config.yaml`:
+
+```bash
+# Copy the template and fill in your real key
+cp .env.example .env
+# Edit .env: PDF2BOOK_API_KEY=sk-your-key
+```
+
+Use `${VAR:-default}` syntax in `config.yaml` to reference environment variables:
+```yaml
+ai_review:
+  api_key: ${PDF2BOOK_API_KEY:-}     # Read from .env, empty if absent
+  api_url: ${PDF2BOOK_API_URL:-https://api.openai.com/v1/chat/completions}
+```
+
+> The `.env` file is excluded by `.gitignore` and won't be uploaded to GitHub. `.env.example` is a template file and safe to commit.
 
 **Layout tuning guide**:
 
@@ -376,6 +397,7 @@ PDF2BOOK/
     │   ├── cip_extractor.py    # CIP metadata extraction (GB/T 12451)
     │   ├── confidence_filter.py # OCR confidence filtering and three-tier marking
     │   ├── typography.py       # Chinese publishing typography rules
+    │   ├── decorations.py      # Decoration image stripping (pHash clustering + separator detection)
     │   └── images.py           # Illustration cropping
     ├── review/             # AI review pipeline (auto-enables when config.yaml has api_key)
     │   ├── markdown_review.py  # Collector + Prompt + Applier (incl. TOC linkification)

@@ -66,6 +66,15 @@ _CHAPTER_CONTEXT_LIMIT = 200
 # Maximum chars of context around low-confidence blocks.
 _CONTEXT_LINES = 3
 
+# Standalone image reference line: `![alt](images/pN_eM.png)`.
+# Matches only lines whose entire content is an image reference (no inline
+# text), so paragraphs with embedded images are not treated as decorations.
+_IMAGE_REF_RE = re.compile(r"^\s*!\[([^\]]*)\]\((images/[^)]+)\)\s*$")
+
+# Window around an image line to search for a nearby H1 chapter title.
+# ±3 covers the common `# title\n\n![](image)` pattern (title, blank, image).
+_DECORATION_TITLE_WINDOW = 3
+
 
 # ---------------------------------------------------------------------------
 # 1. Collector
@@ -86,6 +95,8 @@ def collect_markdown_issues(
       - ``paragraph_issues``: list of short-line-cluster items (broken paragraphs)
       - ``chapter_structure_issues``: list of empty-chapter / level-jump items
       - ``toc_issues``: list of TOC-vs-H1 mismatch items
+      - ``decoration_candidates``: list of image refs near H1 titles (multimodal)
+      - ``decoration_review_images``: list of {path} for decoration candidate images
       - ``book_structure``: BookStructure from meta (or None)
       - ``metadata``: dict with ``current`` metadata fields
       - ``review_images``: list of {page_index, path} for multimodal review
@@ -97,7 +108,8 @@ def collect_markdown_issues(
     markers (``<!-- page: N -->``) are parsed to attach ``page_index`` and
     ``page_image_path`` to low-confidence and title items, and a
     ``review_images`` list (deduplicated, limited to ``max_images``) is
-    returned for multimodal review.
+    returned for multimodal review. Decoration candidates (images near H1
+    titles) are also collected when multimodal is enabled.
     """
     lines = md_path.read_text(encoding="utf-8").splitlines()
 
@@ -188,8 +200,14 @@ def collect_markdown_issues(
     # TOC linkification data: region lines + H1 anchors for AI to linkify.
     toc_linkification = _collect_toc_linkification(lines, title_items)
 
+    # Decoration candidates: images near H1 titles for multimodal AI judgment.
+    decoration_candidates, decoration_review_images = (
+        _collect_decoration_candidates(lines, title_items, work_dir, max_images)
+    )
+
     # Collect review images for multimodal review (deduplicated + limited).
-    # Priority: low-confidence pages first, then title-issue pages.
+    # Priority: low-confidence pages first, then title-issue pages,
+    # then decoration candidates (extracted images, not page screenshots).
     review_images: list[dict] = []
     if max_images > 0:
         seen_pages: set[int] = set()
@@ -230,6 +248,8 @@ def collect_markdown_issues(
         "chapter_structure_issues": chapter_structure_issues,
         "toc_issues": toc_issues,
         "toc_linkification": toc_linkification,
+        "decoration_candidates": decoration_candidates,
+        "decoration_review_images": decoration_review_images,
         "book_structure": book_structure,
         "metadata": {"current": metadata_current},
         "review_images": review_images,
@@ -607,6 +627,88 @@ def _collect_toc_linkification(
     }
 
 
+def _collect_decoration_candidates(
+    lines: list[str],
+    title_items: list[dict],
+    work_dir: Path | None,
+    max_images: int,
+) -> tuple[list[dict], list[dict]]:
+    """Collect image references near chapter titles as decoration candidates.
+
+    Returns ``(candidates, review_images)`` where:
+      - ``candidates``: list of dicts with id, line, image_path, nearby_title,
+        nearby_title_line, alt_text.
+      - ``review_images``: list of ``{"path": Path}`` for the candidate image
+        files (deduplicated, limited to ``max_images``), for multimodal AI.
+
+    An image is a candidate when:
+      - It is a standalone image line (``![alt](images/pN_eM.png)``).
+      - An H1 title exists within ±``_DECORATION_TITLE_WINDOW`` lines.
+      - The image file exists in ``work_dir / image_path``.
+
+    Only runs when ``max_images > 0`` (multimodal enabled) — Phase 2 is
+    multimodal-only. When disabled, returns empty lists and Phase 1
+    (``decorations.strip_decorations``) handles everything deterministically.
+
+    Only H1 titles (level==1) are used as nearby anchors — chapter-divider
+    decorations appear beside chapter headings, not sub-section headings.
+    """
+    if max_images <= 0 or work_dir is None:
+        return [], []
+
+    h1_lines = {
+        item["line"]: item
+        for item in title_items
+        if item.get("level", 1) == 1
+    }
+    if not h1_lines:
+        return [], []
+
+    candidates: list[dict] = []
+    seen_paths: set[str] = set()
+    review_images: list[dict] = []
+
+    for i, line in enumerate(lines):
+        m = _IMAGE_REF_RE.match(line)
+        if not m:
+            continue
+        rel_path = m.group(2)
+        alt_text = m.group(1)
+
+        # Find a nearby H1 title within ±window lines.
+        nearby_title_item: dict | None = None
+        for offset in range(
+            -_DECORATION_TITLE_WINDOW, _DECORATION_TITLE_WINDOW + 1
+        ):
+            check_line = i + offset
+            if check_line in h1_lines:
+                nearby_title_item = h1_lines[check_line]
+                break
+        if nearby_title_item is None:
+            continue
+
+        full_path = work_dir / rel_path
+        if not full_path.exists():
+            continue
+
+        candidates.append(
+            {
+                "id": f"DC-{len(candidates) + 1}",
+                "line": i,
+                "image_path": rel_path,
+                "nearby_title": nearby_title_item["title"],
+                "nearby_title_line": nearby_title_item["line"],
+                "alt_text": alt_text,
+            }
+        )
+
+        if rel_path not in seen_paths and len(review_images) < max_images:
+            seen_paths.add(rel_path)
+            review_images.append({"path": full_path})
+
+    return candidates, review_images
+
+
 # ---------------------------------------------------------------------------
 # 2. Prompt builder
 # ---------------------------------------------------------------------------
@@ -614,8 +716,24 @@ def _collect_toc_linkification(
 
 _SYSTEM_HEADER = dedent(
     """\
-    你是图书 OCR 校对与排版的专家助手。你的任务是审查 OCR 后处理生成的
-    Markdown 文档，修复标记的问题，最终生成完美的 EPUB。
+    你是图书 OCR 校对与排版的专家助手。审查 OCR 后处理生成的 Markdown
+    文档并修复问题。
+
+    ## 输出格式（最高优先级，违反即视为失败）
+    - **第一个字符必须是 `{`，最后一个字符必须是 `}`**。
+    - 不要输出任何前置文字、寒暄、解释、推理、思考过程、代码块标记。
+    - 不要复述输入数据，不要描述附图内容，不要解释你的判断依据。
+    - 只输出需要修正的条目；正常条目不要列出；空结果输出 `{}`。
+
+    ### 正确输出示例
+    {"low_confidence_fixes": [{"id": "LC-1", "corrected": "电线"}], "title_fixes": []}
+
+    ### 严格禁止（以下任何一种都视为失败）
+    - "好的，我来帮你..." 或任何寒暄
+    - "分析：该低置信度文本..." 或任何推理/思考链
+    - "图片显示..." 或任何图像描述（多模态任务除外，且仅作为 classification 字段值）
+    - ```json ... ``` 代码块标记
+    - 复述原始条目或上下文
 
     ## 通用规则
     1. **最小修改原则**：只修正明确错误的部分，不重写正常文本。
@@ -623,7 +741,10 @@ _SYSTEM_HEADER = dedent(
        "[UNCLEAR]" 而非猜测。系统会标记 [需校对] 交人工处理。
     3. **严格遵守约束**：低置信度校对任务中的 max_length / preserved_chars /
        max_edit_distance 约束是硬性限制。
-    4. **只输出 JSON**：不要包含 Markdown 代码块标记、解释性文字或前缀。
+    4. **禁止幻觉**：所有修正必须基于上下文或附图证据，不得凭空创造。
+       - 标题修正必须与章节正文内容相符，不能编造标题。
+       - 低置信度校对必须能从上下文推断出原文，不能猜测生僻字。
+       - 无法确定时一律输出 "[UNCLEAR]"，由人工处理。
     """
 )
 
@@ -631,7 +752,7 @@ _SYSTEM_HEADER = dedent(
 def build_review_prompt(issues: dict) -> str:
     """Build a single comprehensive review prompt from collected issues.
 
-    The prompt includes up to eight tasks:
+    The prompt includes up to nine tasks:
       1. Low-confidence OCR text correction
       2. Chapter title review (garbled / split / too short)
       3. Metadata verification
@@ -640,10 +761,12 @@ def build_review_prompt(issues: dict) -> str:
       6. TOC validation (TOC vs H1 mismatches)
       7. Book structure verification
       8. TOC linkification (convert TOC region to clickable link list)
+      9. Decoration identification (multimodal: classify images near titles)
 
     AI returns a single JSON object with ``low_confidence_fixes``,
     ``title_fixes``, ``metadata``, ``paragraph_fixes``, ``chapter_fixes``,
-    ``toc_fixes``, ``book_structure_fixes``, and ``toc_linkification``.
+    ``toc_fixes``, ``book_structure_fixes``, ``toc_linkification``, and
+    ``decoration_fixes``.
     """
     low_conf = issues.get("low_confidence_texts", [])
     titles = issues.get("title_candidates", [])
@@ -653,6 +776,7 @@ def build_review_prompt(issues: dict) -> str:
     toc_issues = issues.get("toc_issues", [])
     toc_link = issues.get("toc_linkification")
     book_structure = issues.get("book_structure")
+    deco_candidates = issues.get("decoration_candidates", [])
 
     sections: list[str] = [_SYSTEM_HEADER]
 
@@ -883,27 +1007,71 @@ def build_review_prompt(issues: dict) -> str:
             )
         )
 
+    # --- Task 9: Decoration identification (multimodal) ---
+    if deco_candidates:
+        deco_payload = []
+        for cand in deco_candidates:
+            deco_payload.append(
+                {
+                    "id": cand["id"],
+                    "image_path": cand["image_path"],
+                    "nearby_title": cand["nearby_title"],
+                    "alt_text": cand.get("alt_text", ""),
+                }
+            )
+        sections.append(
+            dedent(
+                f"""\
+                ## 任务 9：装饰识别（多模态）
+
+                下方 JSON 列出紧邻章节标题的图片候选。请结合附图判断每张图的角色：
+                - `decoration`：装饰花纹、几何图标、章节分隔花纹 → **删除**
+                - `chapter_illustration`：章首插图、人物速写、章首大图 → 保留
+                - `functional_image`：二维码、条形码、ISBN 码 → 保留
+                - `other`：其他内容图 → 保留
+
+                ### 判定规则
+                1. 看图本身：装饰花纹通常对称、单色、几何化；插图有内容（人物/场景）。
+                2. 看上下文：周围 OCR 文本有「扫码/二维码」→ functional_image。
+                3. 不确定时一律判 `other`（保守策略，宁可漏删不误删）。
+                4. 只输出需要删除的 `decoration` 条目，其他类型不必输出。
+                5. 每张候选图的 `image_path` 字段对应附图中的文件名。
+
+                ### 输入数据
+                {json.dumps(deco_payload, ensure_ascii=False, indent=2)}
+                """
+            )
+        )
+
     # --- Image attachment note (multimodal) ---
     review_images = issues.get("review_images", [])
-    if review_images:
+    deco_review_images = issues.get("decoration_review_images", [])
+    if review_images or deco_review_images:
         img_lines = []
-        for idx, img in enumerate(review_images, 1):
+        idx = 0
+        for img in review_images:
+            idx += 1
             filename = Path(img["path"]).name
             img_lines.append(f"| {idx} | {filename} | 第{img['page_index']}页 |")
+        for img in deco_review_images:
+            idx += 1
+            filename = Path(img["path"]).name
+            img_lines.append(f"| {idx} | {filename} | 装饰候选 |")
         sections.append(
             dedent(
                 f"""\
                 ## 附图说明
 
-                本次审查附带 {len(review_images)} 张页面图片（按顺序提供），
-                可用于辅助判断低置信度文本和标题问题：
+                本次审查附带 {idx} 张图片（按顺序提供）：
+                - 页面截图：用于辅助判断低置信度文本和标题问题
+                - 装饰候选图：用于任务 9 的装饰识别
 
-                | 序号 | 文件名 | 页码 |
+                | 序号 | 文件名 | 用途 |
                 |------|--------|------|
                 {chr(10).join(img_lines)}
 
-                各低置信度文本和标题条目中的 `page_index` 字段对应上述图片页码。
-                请结合图片内容判断 OCR 乱码处的正确文字。
+                低置信度文本和标题条目中的 `page_index` 字段对应页面截图。
+                装饰候选条目中的 `image_path` 字段对应装饰候选图文件名。
                 """
             )
         )
@@ -948,7 +1116,10 @@ def build_review_prompt(issues: dict) -> str:
                 "start_line": 17,
                 "end_line": 30,
                 "replacement": "::: {.toc-list}\\n- [标题](#ch-N)\\n:::"
-              }
+              },
+              "decoration_fixes": [
+                {"id": "DC-1", "action": "delete"}
+              ]
             }
 
             注意：
@@ -958,6 +1129,8 @@ def build_review_prompt(issues: dict) -> str:
             - metadata 中无需修改的字段设为 null
             - 各 fixes 数组可为空，只包含需要修改的条目
             - toc_linkification 无需修改时设为 null
+            - decoration_fixes 只包含判为 decoration 需删除的条目，
+              action 固定为 "delete"；其他类型（插图/功能图/其他）不输出
             """
         )
     )
@@ -1125,6 +1298,22 @@ def apply_markdown_corrections(
         page_suffix = page_match.group(0) if page_match else ""
         line_fixes[line_idx] = f"{new_title}{page_suffix}"
 
+    # --- Decoration fixes (AI path: multimodal decoration identification) ---
+    # AI identifies images near chapter titles as decorations and returns
+    # {id, action: "delete"} for each. We delete the corresponding image
+    # reference line. Non-decoration classifications (chapter_illustration,
+    # functional_image, other) are NOT returned — only deletions.
+    deco_by_id = {
+        item["id"]: item for item in issues.get("decoration_candidates", [])
+    }
+    for fix in corrections.get("decoration_fixes", []):
+        item = deco_by_id.get(fix.get("id", ""))
+        if item is None:
+            continue
+        if fix.get("action") != "delete":
+            continue
+        line_fixes[item["line"]] = None  # delete the image reference line
+
     # --- TOC linkification (AI path) ---
     # AI returns a `toc_linkification` object with `start_line`, `end_line`,
     # and `replacement` (multi-line string). We replace the original TOC
@@ -1193,8 +1382,181 @@ def apply_markdown_corrections(
     return meta
 
 
+# ---------------------------------------------------------------------------
+# 4. Batched review (split large reviews into multiple API calls)
+# ---------------------------------------------------------------------------
+
+# Maximum items per API call. Empirically, the sensenova flash-lite model
+# truncates responses at ~12 title fixes (batch of 15 failed, batch of 12
+# succeeded). Setting batch size to 5 gives a safe margin for any model,
+# trading more API calls for reliability. With 42 titles → 9 batches.
+_TITLE_BATCH_SIZE = 5
+_LOW_CONF_BATCH_SIZE = 5
+
+
+def build_review_batches(
+    issues: dict,
+    max_images: int = 0,
+    multimodal: bool = False,
+) -> list[dict]:
+    """Split ``issues`` into multiple smaller sub-issues for batched API calls.
+
+    Returns a list of batch dicts, each with:
+      - ``issues``: a filtered issues dict (only the tasks this batch covers)
+      - ``image_paths``: list of Path for this batch (empty for text-only)
+      - ``label``: human-readable batch name for logging
+
+    Batching strategy:
+      1. **Low-confidence texts** — split into chunks of
+         ``_LOW_CONF_BATCH_SIZE``, each with matching page screenshots
+      2. **Title review** — split into chunks of ``_TITLE_BATCH_SIZE`` (text-only)
+      3. **Decoration identification** — multimodal, with candidate images
+      4. **Structure tasks** — metadata + paragraph + chapter + TOC +
+         linkification + book_structure (text-only)
+
+    Each batch produces a subset of correction keys. The caller merges
+    all batch responses via ``merge_corrections`` before applying.
+    """
+    batches: list[dict] = []
+
+    low_conf = issues.get("low_confidence_texts", [])
+    titles = issues.get("title_candidates", [])
+    deco_candidates = issues.get("decoration_candidates", [])
+    deco_images = issues.get("decoration_review_images", [])
+    review_images = issues.get("review_images", [])
+
+    # --- Batch 1..N: Low-confidence texts (chunked, text-only) ---
+    # Low-confidence batches are text-only: page screenshots cause the model
+    # to generate lengthy image descriptions, consuming the entire output
+    # token budget. Text context alone is sufficient for OCR correction.
+    # Multimodal is reserved for the decoration identification batch.
+    if low_conf:
+        total_lc_batches = (len(low_conf) + _LOW_CONF_BATCH_SIZE - 1) // _LOW_CONF_BATCH_SIZE
+        for start in range(0, len(low_conf), _LOW_CONF_BATCH_SIZE):
+            chunk = low_conf[start:start + _LOW_CONF_BATCH_SIZE]
+            batch_num = start // _LOW_CONF_BATCH_SIZE + 1
+
+            batches.append({
+                "issues": {
+                    "low_confidence_texts": chunk,
+                    "title_candidates": [],
+                    "metadata": {"current": {}},
+                    "review_images": [],
+                },
+                "image_paths": [],
+                "label": f"low-confidence {batch_num}/{total_lc_batches} ({len(chunk)} items)",
+            })
+
+    # --- Batch 2..N: Title review (chunked) ---
+    for start in range(0, len(titles), _TITLE_BATCH_SIZE):
+        chunk = titles[start:start + _TITLE_BATCH_SIZE]
+        batch_num = start // _TITLE_BATCH_SIZE + 1
+        total_batches = (len(titles) + _TITLE_BATCH_SIZE - 1) // _TITLE_BATCH_SIZE
+        batches.append({
+            "issues": {
+                "low_confidence_texts": [],
+                "title_candidates": chunk,
+                "metadata": {"current": {}},
+                "review_images": [],
+            },
+            "image_paths": [],
+            "label": f"titles {batch_num}/{total_batches} ({len(chunk)} items)",
+        })
+
+    # --- Batch: Decoration identification (multimodal) ---
+    if deco_candidates:
+        batch_images = [item["path"] for item in deco_images] if multimodal else []
+        batches.append({
+            "issues": {
+                "low_confidence_texts": [],
+                "title_candidates": [],
+                "metadata": {"current": {}},
+                "decoration_candidates": deco_candidates,
+                "decoration_review_images": deco_images if batch_images else [],
+                "review_images": [],
+            },
+            "image_paths": batch_images,
+            "label": f"decoration ({len(deco_candidates)} candidates)",
+        })
+
+    # --- Batch: Structure tasks (metadata + paragraph + chapter + TOC + etc.) ---
+    structure_issues: dict = {
+        "low_confidence_texts": [],
+        "title_candidates": [],
+        "metadata": issues.get("metadata", {"current": {}}),
+        "paragraph_issues": issues.get("paragraph_issues", []),
+        "chapter_structure_issues": issues.get("chapter_structure_issues", []),
+        "toc_issues": issues.get("toc_issues", []),
+        "toc_linkification": issues.get("toc_linkification"),
+        "book_structure": issues.get("book_structure"),
+        "review_images": [],
+    }
+    has_structure_content = any([
+        structure_issues["paragraph_issues"],
+        structure_issues["chapter_structure_issues"],
+        structure_issues["toc_issues"],
+        structure_issues["toc_linkification"],
+        structure_issues["book_structure"] is not None,
+    ])
+    # Always include this batch (metadata verification should run even
+    # when no other structure issues exist).
+    batches.append({
+        "issues": structure_issues,
+        "image_paths": [],
+        "label": f"structure{' + metadata' if has_structure_content else ' (metadata)'}",
+    })
+
+    return batches
+
+
+# Keys whose values are lists (concatenated during merge).
+_LIST_CORRECTION_KEYS = frozenset({
+    "low_confidence_fixes",
+    "title_fixes",
+    "paragraph_fixes",
+    "chapter_fixes",
+    "toc_fixes",
+    "decoration_fixes",
+})
+
+
+def merge_corrections(results: list[dict]) -> dict:
+    """Merge multiple AI correction dicts into one.
+
+    List-valued keys (``low_confidence_fixes``, ``title_fixes``, etc.) are
+    concatenated. Scalar/dict keys (``metadata``, ``toc_linkification``,
+    ``book_structure_fixes``) take the last non-null/non-empty value.
+
+    ``results`` entries that are ``None`` or not dicts are silently skipped
+    (a failed API call for one batch should not block the others).
+    """
+    merged: dict = {}
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        for key, value in result.items():
+            if key in _LIST_CORRECTION_KEYS:
+                if isinstance(value, list):
+                    merged.setdefault(key, []).extend(value)
+            elif key in ("metadata", "book_structure_fixes"):
+                if isinstance(value, dict) and value:
+                    existing = merged.get(key)
+                    if isinstance(existing, dict):
+                        existing.update(value)
+                    else:
+                        merged[key] = value
+            elif key == "toc_linkification":
+                if isinstance(value, dict) and value:
+                    merged[key] = value
+            else:
+                merged[key] = value
+    return merged
+
+
 __all__ = [
     "collect_markdown_issues",
     "build_review_prompt",
+    "build_review_batches",
+    "merge_corrections",
     "apply_markdown_corrections",
 ]
