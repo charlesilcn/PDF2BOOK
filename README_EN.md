@@ -425,13 +425,13 @@ Under the Skill path, the AI agent itself handles all "content understanding" de
 
 ### One-Line Skill Install
 
-Paste this into your AI agent's chat — it will fetch the skill file and auto-install:
+Paste this into your AI agent's chat — it will fetch the skill file and complete the full installation:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/charlesilcn/PDF2BOOK/main/skills/pdf2book/SKILL.md
 ```
 
-The agent reads the 9-step workflow, then you just say "convert XX.pdf to EPUB" to start.
+That's it. The skill file teaches the agent how to install the project, check dependencies, and use all commands. The agent will automatically run environment check → clone repo → install dependencies, then you just say "convert XX.pdf to EPUB" to start.
 
 ## Contributing
 

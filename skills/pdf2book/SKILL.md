@@ -14,11 +14,53 @@ description: "Auto-converts scanned PDF to Kindle EPUB with AI metadata/layout i
 - 提及 pdf2book 工具
 - 想让扫描版图书在 Kindle 上可读（字体太小需要重排）
 
-## 前置条件
+## 环境检查与自动安装
 
-- 项目已安装在 `d:\Coding\PDF2BOOK`，依赖已安装（`pip install -e ".[ocr,dev]"`）
-- `pdf2book` 命令可用（或通过 `python -m pdf2book`）
-- PaddleOCR PP-StructureV3 模型已下载（首次运行自动下载约 1.5GB）
+**Agent 读取本 Skill 后，首先执行以下检查，按需自动安装。**
+
+### 步骤 0：检查 pdf2book 是否已安装
+
+```bash
+pdf2book --help 2>/dev/null || python -m pdf2book --help 2>/dev/null
+```
+
+- **如果命令可用**：跳到「步骤 1：接收 PDF 路径」
+- **如果命令不可用**：执行下方安装流程
+
+### 步骤 0a：克隆仓库并安装依赖
+
+```bash
+# 1. 选择安装目录（默认用户主目录下）
+INSTALL_DIR="$HOME/PDF2BOOK"
+# Windows PowerShell: $INSTALL_DIR = "$env:USERPROFILE\PDF2BOOK"
+
+# 2. 克隆仓库
+git clone https://github.com/charlesilcn/PDF2BOOK.git "$INSTALL_DIR"
+cd "$INSTALL_DIR"
+
+# 3. 安装 Python 依赖（含 OCR 引擎和开发工具）
+pip install -e ".[ocr,dev]"
+
+# 4. 验证安装成功
+python -m pdf2book --help
+```
+
+**安装说明**：
+- Python 3.10+ 必须（检查：`python --version`）
+- PaddleOCR PP-StructureV3 模型约 1.5GB，首次运行 OCR 时自动下载
+- 如需轻量 OCR 后端（约 50MB）：`pip install -e ".[rapid]"`，然后用 `--backend rapid_ocr`
+- Pandoc 必须安装（EPUB 生成用）：Windows `winget install pandoc` / macOS `brew install pandoc` / Linux `apt install pandoc`
+
+### 步骤 0b：验证安装
+
+```bash
+cd "$INSTALL_DIR"
+python -m pdf2book --help
+```
+
+确认输出包含 `ocr`、`epub`、`convert`、`batch` 子命令说明。安装成功后，所有后续命令在 `$INSTALL_DIR` 目录下运行。
+
+**后续命令中 `{INSTALL_DIR}` 指安装目录路径。如果用户已有项目副本，直接在项目根目录运行即可。**
 
 ## 核心原则
 
