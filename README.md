@@ -90,15 +90,17 @@ pip install -e ".[ocr,dev]"
 | `ocr` | PaddleOCR PP-StructureV3（默认 OCR 后端） | `pip install -e ".[ocr]"` |
 | `rapid` | RapidOCR 轻量后端（约 50MB） | `pip install -e ".[rapid]"` |
 | `cloud` | 远程 OCR API 后端 | `pip install -e ".[cloud]"` |
+| `gui` | Gradio Web UI（可视化操作界面） | `pip install -e ".[gui]"` |
 | `dev` | 测试与代码检查工具 | `pip install -e ".[dev]"` |
 
 ## 使用方法
 
-PDF2BOOK 提供两种使用方式，都能让 AI 全面接管校对/排版/元数据工作，用户无需手动 review：
+PDF2BOOK 提供三种使用方式，都能让 AI 全面接管校对/排版/元数据工作，用户无需手动 review：
 
 | 模式 | 适用场景 | 是否需要 API key | AI 工作由谁做 |
 |---|---|---|---|
 | **CLI 模式** | 命令行批量处理、脚本集成 | 需要（配置在 config.yaml） | 外部 LLM（如 GPT-4o-mini） |
+| **Web UI 模式** | 可视化操作，浏览器中拖拽 PDF | 需要（在 UI 引导配置） | 外部 LLM（如 GPT-4o-mini） |
 | **Skill 模式** | 在 Trae IDE 中自然语言触发 | 不需要 | Trae agent 自身推理 |
 
 ### 准备工作
@@ -193,6 +195,27 @@ pdf2book convert inbox/世界神话传说.pdf --no-ai-review
 Skill 路径下所有 `pdf2book` 命令加 `--no-ai-review` 标志，config.yaml 显式写 `ai_review.enabled: false`，确保不触发外部 LLM 调用。AI 工作由 agent 自身用 Read/Grep/Edit 工具完成。
 
 详见 [`.trae/skills/pdf2book/SKILL.md`](.trae/skills/pdf2book/SKILL.md)。
+
+### Web UI 模式（可视化操作）
+
+安装 Gradio 可选依赖后，可用浏览器界面操作，无需记忆命令行参数：
+
+```bash
+pip install -e ".[gui]"
+pdf2book gui
+```
+
+浏览器自动打开 `http://127.0.0.1:7860`，提供四个标签页：
+
+| 标签页 | 功能 |
+|---|---|
+| **引导配置** | 首次运行检测 OCR 引擎和依赖，引导填入 API key（写入 `.env`，不上传 GitHub） |
+| **转换** | 拖拽 PDF 到页面，实时进度条显示 OCR/AI 审查/EPUB 生成各阶段 |
+| **编辑** | 预览 `book.md` 中间产物，可手动修正后再构建 EPUB |
+| **校对** | 查看 AI 校对前/后对比 diff |
+| **书库** | 浏览 `library/` 中的 EPUB，预览/替换封面图 |
+
+> `--share` 标志可创建临时公开链接（Gradio 隧道），方便演示。
 
 ### 迁移说明（旧 --ai-review 用户）
 
@@ -303,6 +326,17 @@ Options:
   -v, --verbose       启用 DEBUG 日志
 ```
 
+### `pdf2book gui` — Web UI 启动
+
+```
+pdf2book gui [--share] [-v]
+
+# 浏览器自动打开 http://127.0.0.1:7860
+# --share: 创建临时公开链接（Gradio 隧道）
+
+# 需要安装可选依赖：pip install -e ".[gui]"
+```
+
 ## 配置
 
 `pdf2book` 会自动查找当前目录的 `config.yaml`（无需 `--config` 显式指定）。完整字段示例见 [`config.yaml`](config.yaml)：
@@ -407,8 +441,18 @@ PDF2BOOK/
     │   ├── metadata.py         # 元数据 YAML 读写 + BookMetadata
     │   ├── toc_links.py        # 目录链接化纯文本 fallback
     │   └── templates/kindle.css # Kindle 优化 CSS
+    ├── ui/                 # Gradio Web UI（可选扩展，pip install -e ".[gui]"）
+    │   ├── app.py              # 组装所有标签页为 gr.Blocks
+    │   ├── detect.py           # 环境/依赖检测（驱动引导页）
+    │   ├── onboarding.py       # 首次运行设置（OCR 引擎 + API key）
+    │   ├── convert_tab.py      # PDF→EPUB 转换标签页（实时进度）
+    │   ├── edit_tab.py         # Markdown 预览/编辑标签页
+    │   ├── review_tab.py       # AI 校对前/后 diff 标签页
+    │   ├── library_tab.py      # EPUB 书库管理（封面预览/替换）
+    │   └── theme.py            # Glass 主题 + CSS 动画
+    ├── progress.py         # 进度报告抽象（CLI/Web UI/日志多后端）
     ├── pdf/                # PDF 渲染与元数据提取
-    └── utils/              # SQLite 缓存、日志
+    └── utils/              # SQLite 缓存、日志、.env 写入
 ```
 
 ## Trae Skill

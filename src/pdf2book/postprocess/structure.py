@@ -330,8 +330,16 @@ def to_markdown(
         if page.page_type in _SKIP_PAGE_TYPES:
             continue
         if page.page_type in _IMAGE_RENDER_TYPES:
-            blocks.append(f"![](pages/page_{page.page_index:04d}.png)")
-            continue
+            # illustration 页面优先使用 OCR 截取的配图（images/pN_eM.png），
+            # 而非完整页面图，这样配图与注释能正确绑定。仅当页面中没有
+            # 图片元素时才回退到完整页面图。
+            if page.page_type == PageType.ILLUSTRATION.value and any(
+                not e.dropped and e.type in IMAGE_LABELS for e in page.elements
+            ):
+                pass  # 继续处理图片元素
+            else:
+                blocks.append(f"![](pages/page_{page.page_index:04d}.png)")
+                continue
         if emit_page_markers:
             blocks.append(f"<!-- page: {page.page_index} -->")
         live = sorted(

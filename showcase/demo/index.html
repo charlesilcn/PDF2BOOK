@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF2BOOK — AI 智能电子书排版师 | 交互体验</title>
+<style>
+/* ========== Reset & Base ========== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--glass:rgba(255,255,255,.06);--glass-bd:rgba(255,255,255,.12);
+  --txt:#e8eaf0;--txt-dim:#9ca3af;--txt-mute:#6b7280;
+  --accent:#6ee7b7;--accent2:#60a5fa;--accent3:#c084fc;--warn:#fbbf24;--danger:#f87171;
+  --radius:16px;--radius-sm:10px;
+  --shadow:0 8px 32px rgba(0,0,0,.4);
+  --kindle-bg:#f4f1ea;--kindle-txt:#2c2c2c;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'PingFang SC','Microsoft YaHei','Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--txt);line-height:1.7;overflow-x:hidden;
+  min-height:100vh;
+}
+/* Animated background */
+body::before{
+  content:'';position:fixed;inset:0;z-index:-1;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 0%,rgba(96,165,250,.12),transparent),
+    radial-gradient(ellipse 50% 40% at 80% 30%,rgba(192,132,252,.10),transparent),
+    radial-gradient(ellipse 40% 30% at 50% 80%,rgba(110,231,183,.08),transparent),
+    var(--bg);
+}
+/* ========== Layout ========== */
+.wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+section{padding:72px 0;position:relative}
+.section-tag{
+  display:inline-block;font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;
+  color:var(--accent);background:rgba(110,231,183,.1);padding:4px 14px;border-radius:20px;
+  margin-bottom:16px;border:1px solid rgba(110,231,183,.2);
+}
+.section-title{font-size:32px;font-weight:700;margin-bottom:12px;letter-spacing:-.5px}
+.section-sub{font-size:16px;color:var(--txt-dim);max-width:680px;margin-bottom:40px}
+
+/* ========== Glass Card ========== */
+.glass{
+  background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--glass-bd);border-radius:var(--radius);box-shadow:var(--shadow);
+}
+
+/* ========== Hero ========== */
+#hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding-top:80px}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--accent);
+  background:rgba(110,231,183,.08);border:1px solid rgba(110,231,183,.2);
+  padding:6px 16px;border-radius:24px;margin-bottom:28px;
+  animation:fadeInDown .8s ease;
+}
+.hero-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+.hero-title{
+  font-size:clamp(40px,7vw,72px);font-weight:800;letter-spacing:-2px;line-height:1.1;
+  background:linear-gradient(135deg,#6ee7b7 0%,#60a5fa 50%,#c084fc 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:fadeInUp .8s ease .1s both;
+}
+.hero-sub{font-size:clamp(18px,2.5vw,24px);color:var(--txt-dim);margin-top:20px;animation:fadeInUp .8s ease .2s both}
+.hero-flow{
+  display:flex;align-items:center;justify-content:center;gap:20px;margin:48px 0;flex-wrap:wrap;
+  animation:fadeInUp .8s ease .3s both;
+}
+.flow-item{
+  display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 32px;
+  border-radius:var(--radius);min-width:140px;
+}
+.flow-item.pdf{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2)}
+.flow-item.epub{background:rgba(110,231,183,.08);border:1px solid rgba(110,231,183,.2)}
+.flow-icon{font-size:36px}
+.flow-label{font-size:15px;font-weight:600}
+.flow-arrow{
+  display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--accent2);
+  animation:arrowPulse 2s infinite;
+}
+.flow-arrow .ai-tag{
+  font-size:12px;font-weight:700;color:var(--accent);background:rgba(110,231,183,.1);
+  padding:2px 10px;border-radius:12px;border:1px solid rgba(110,231,183,.2);
+}
+.hero-cta{
+  display:inline-flex;align-items:center;gap:10px;font-size:17px;font-weight:600;
+  color:#0a0e1a;background:linear-gradient(135deg,#6ee7b7,#60a5fa);
+  padding:14px 36px;border-radius:30px;border:none;cursor:pointer;
+  transition:all .3s;animation:fadeInUp .8s ease .4s both;
+  box-shadow:0 4px 24px rgba(110,231,183,.3);
+}
+.hero-cta:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(110,231,183,.5)}
+.hero-stats{
+  display:flex;gap:48px;justify-content:center;margin-top:56px;flex-wrap:wrap;
+  animation:fadeInUp .8s ease .5s both;
+}
+.stat{text-align:center}
+.stat-num{font-size:36px;font-weight:800;color:var(--accent)}
+.stat-label{font-size:13px;color:var(--txt-mute);margin-top:4px}
+
+/* ========== Step 1: Input (Scanned PDF) ========== */
+.input-demo{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+@media(max-width:768px){.input-demo{grid-template-columns:1fr}}
+.kindle-mock{
+  background:#2d2d2d;border-radius:20px 20px 12px 12px;padding:16px 16px 28px;
+  box-shadow:var(--shadow);position:relative;
+}
+.kindle-mock::after{
+  content:'';position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  width:40px;height:4px;background:#555;border-radius:2px;
+}
+.kindle-screen{
+  background:var(--kindle-bg);border-radius:6px;overflow:hidden;position:relative;
+  aspect-ratio:3/4;
+}
+.kindle-screen img{width:100%;height:100%;object-fit:cover;opacity:.85}
+.kindle-overlay{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.3);color:#fff;font-size:14px;text-align:center;padding:20px;
+}
+.input-explain h3{font-size:22px;margin-bottom:16px;color:var(--warn)}
+.input-explain p{color:var(--txt-dim);margin-bottom:16px;font-size:15px}
+.pain-list{list-style:none}
+.pain-list li{
+  display:flex;gap:12px;padding:14px 16px;margin-bottom:10px;border-radius:var(--radius-sm);
+  background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.12);
+  font-size:14px;color:var(--txt-dim);
+}
+.pain-list li .icon{font-size:18px;flex-shrink:0}
+
+/* ========== Step 2: AI Pipeline ========== */
+.pipeline-start{
+  display:block;margin:0 auto 40px;font-size:17px;font-weight:600;
+  color:#0a0e1a;background:linear-gradient(135deg,#60a5fa,#c084fc);
+  padding:14px 40px;border-radius:30px;border:none;cursor:pointer;
+  transition:all .3s;box-shadow:0 4px 24px rgba(96,165,250,.3);
+}
+.pipeline-start:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(96,165,250,.5)}
+.pipeline-start:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.pipeline-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:768px){.pipeline-grid{grid-template-columns:1fr}}
+.pipe-step{
+  padding:24px;border-radius:var(--radius);position:relative;overflow:hidden;
+  background:var(--glass);border:1px solid var(--glass-bd);
+  transition:all .4s;opacity:.4;
+}
+.pipe-step.active{opacity:1;border-color:var(--accent);background:rgba(110,231,183,.06);transform:scale(1.02)}
+.pipe-step.done{opacity:1;border-color:rgba(110,231,183,.3)}
+.pipe-step .step-num{
+  position:absolute;top:12px;right:16px;font-size:36px;font-weight:800;
+  color:rgba(255,255,255,.06);
+}
+.pipe-step.active .step-num{color:rgba(110,231,183,.2)}
+.pipe-step .step-icon{font-size:28px;margin-bottom:12px;display:block}
+.pipe-step .step-title{font-size:16px;font-weight:600;margin-bottom:6px}
+.pipe-step .step-desc{font-size:13px;color:var(--txt-dim);line-height:1.5}
+.pipe-step .step-check{
+  position:absolute;top:16px;right:16px;color:var(--accent);font-size:18px;
+  opacity:0;transition:opacity .3s;
+}
+.pipe-step.done .step-check{opacity:1}
+.pipe-step.done .step-num{display:none}
+
+/* ========== Contrast Slider ========== */
+.kindle-frame{
+  background:linear-gradient(145deg,#333,#1c1c1c);
+  border-radius:32px;padding:26px 22px 52px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5),inset 0 1px 2px rgba(255,255,255,.08);
+  position:relative;max-width:680px;margin:0 auto;
+}
+.kindle-frame::after{
+  content:'kindle';position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+  font-size:11px;color:#555;font-weight:700;letter-spacing:3px;
+}
+.kindle-screen{
+  border-radius:6px;overflow:hidden;position:relative;aspect-ratio:4/3;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.05);
+}
+.contrast-box{
+  position:absolute;inset:0;user-select:none;
+}
+.contrast-layer{position:absolute;inset:0;overflow:hidden}
+.contrast-before{z-index:1}
+.contrast-after{z-index:2;clip-path:inset(0 0 0 var(--pos,50%))}
+.contrast-before img,.contrast-after .epub-page{
+  width:100%;height:100%;
+}
+.contrast-before img{object-fit:contain;filter:contrast(.85) brightness(.8)}
+.contrast-before::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(248,113,113,.10),rgba(0,0,0,.12));
+  pointer-events:none;
+}
+.contrast-after .epub-page{
+  background:var(--kindle-bg);color:var(--kindle-txt);
+  padding:24px 30px;font-family:'Georgia','Noto Serif SC',serif;
+  display:flex;flex-direction:column;justify-content:flex-start;
+  overflow:hidden;--cfs:20px;
+}
+@media(max-width:768px){.contrast-after .epub-page{padding:16px 18px}}
+.contrast-after .epub-page h3{
+  font-size:calc(var(--cfs) * 1.3);text-align:center;margin-bottom:12px;
+  color:#1a1a1a;border-bottom:1px solid #ccc;padding-bottom:6px;
+  flex-shrink:0;
+}
+.contrast-after .epub-page p{
+  font-size:var(--cfs);line-height:1.85;text-indent:2em;
+  color:#333;margin-bottom:8px;
+}
+.contrast-toolbar{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  max-width:680px;margin:0 auto 16px;
+}
+.contrast-toolbar .toolbar-label{
+  font-size:13px;color:var(--txt-dim);font-weight:500;
+}
+.contrast-font-btn{
+  width:32px;height:32px;border-radius:8px;border:1px solid var(--glass-bd);
+  background:var(--glass);font-size:13px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;color:var(--txt);
+  transition:all .2s;
+}
+.contrast-font-btn:hover{background:rgba(110,231,183,.15);border-color:var(--accent)}
+.contrast-fs-display{
+  font-size:13px;color:var(--accent);font-weight:600;min-width:42px;text-align:center;
+  font-variant-numeric:tabular-nums;
+}
+.contrast-after::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(225deg,rgba(110,231,183,.08),transparent 60%);
+  pointer-events:none;
+}
+.contrast-label{
+  position:absolute;top:16px;padding:6px 16px;border-radius:20px;
+  font-size:13px;font-weight:600;z-index:5;backdrop-filter:blur(8px);
+}
+.contrast-label.before-lbl{left:16px;background:rgba(248,113,113,.2);color:var(--danger);border:1px solid rgba(248,113,113,.3)}
+.contrast-label.after-lbl{right:16px;background:rgba(110,231,183,.2);color:var(--accent);border:1px solid rgba(110,231,183,.3)}
+.contrast-handle{
+  position:absolute;top:0;bottom:0;left:var(--pos,50%);z-index:10;
+  width:3px;background:linear-gradient(180deg,var(--accent),var(--accent2));
+  transform:translateX(-50%);cursor:ew-resize;
+}
+.contrast-handle::before{
+  content:'';position:absolute;inset:0;width:40px;left:50%;transform:translateX(-50%);
+}
+.handle-circle{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:48px;height:48px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:#0a0e1a;font-weight:700;
+  box-shadow:0 4px 16px rgba(0,0,0,.4);cursor:ew-resize;
+  transition:transform .2s;
+}
+.handle-circle:hover{transform:translate(-50%,-50%) scale(1.1)}
+.contrast-hint{
+  position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+  font-size:12px;color:var(--txt-dim);background:rgba(0,0,0,.4);
+  padding:4px 14px;border-radius:12px;backdrop-filter:blur(4px);z-index:5;
+}
+/* Effort comparison */
+.effort-compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px}
+@media(max-width:768px){.effort-compare{grid-template-columns:1fr}}
+.effort-card{padding:28px;border-radius:var(--radius);position:relative}
+.effort-card.old{background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.15)}
+.effort-card.new{background:rgba(110,231,183,.06);border:1px solid rgba(110,231,183,.2)}
+.effort-card .effort-tag{
+  display:inline-block;font-size:12px;font-weight:600;padding:3px 12px;border-radius:12px;margin-bottom:14px;
+}
+.effort-card.old .effort-tag{background:rgba(248,113,113,.15);color:var(--danger)}
+.effort-card.new .effort-tag{background:rgba(110,231,183,.15);color:var(--accent)}
+.effort-card .effort-time{font-size:28px;font-weight:800;margin-bottom:6px}
+.effort-card.old .effort-time{color:var(--danger)}
+.effort-card.new .effort-time{color:var(--accent)}
+.effort-card .effort-desc{font-size:14px;color:var(--txt-dim);margin-bottom:16px}
+.effort-list{list-style:none}
+.effort-list li{font-size:13px;color:var(--txt-dim);padding:6px 0;display:flex;gap:8px;align-items:flex-start}
+.effort-list li .ico{flex-shrink:0}
+
+/* ========== Step 3: Output (EPUB Reader) ========== */
+.reader-container{
+  display:grid;grid-template-columns:240px 1fr;gap:0;border-radius:var(--radius);
+  overflow:hidden;box-shadow:var(--shadow);min-height:600px;
+  background:var(--glass);border:1px solid var(--glass-bd);
+}
+@media(max-width:768px){.reader-container{grid-template-columns:1fr;min-height:auto}}
+.reader-sidebar{
+  background:rgba(0,0,0,.25);border-right:1px solid var(--glass-bd);
+  padding:20px 0;overflow-y:auto;max-height:600px;
+}
+@media(max-width:768px){.reader-sidebar{max-height:200px;border-right:none;border-bottom:1px solid var(--glass-bd)}}
+.reader-sidebar h4{
+  font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--txt-mute);
+  padding:0 20px 12px;border-bottom:1px solid var(--glass-bd);margin-bottom:8px;
+}
+.toc-item{
+  display:block;padding:8px 20px;font-size:14px;color:var(--txt-dim);cursor:pointer;
+  transition:all .2s;border-left:3px solid transparent;text-decoration:none;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.toc-item:hover{background:rgba(255,255,255,.04);color:var(--txt)}
+.toc-item.active{background:rgba(110,231,183,.08);color:var(--accent);border-left-color:var(--accent)}
+.reader-main{
+  background:var(--kindle-bg);color:var(--kindle-txt);padding:0;
+  position:relative;overflow:hidden;
+}
+.reader-toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px;background:rgba(0,0,0,.04);border-bottom:1px solid rgba(0,0,0,.06);
+}
+.reader-toolbar .book-title{font-size:14px;font-weight:600;color:#555}
+.font-controls{display:flex;gap:8px;align-items:center}
+.font-btn{
+  width:32px;height:32px;border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:6px;
+  cursor:pointer;font-size:14px;color:#555;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;
+}
+.font-btn:hover{background:#f0ede5}
+.reader-content{
+  padding:32px 40px;max-height:540px;overflow-y:auto;font-family:'Georgia','Noto Serif SC',serif;
+  transition:font-size .3s;
+}
+@media(max-width:768px){.reader-content{padding:20px;max-height:400px}}
+.reader-content .cover-page{text-align:center;padding:40px 0}
+.reader-content .cover-page img{max-width:200px;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.reader-content .cover-page .cover-title{font-size:24px;font-weight:700;margin-top:20px;color:#333}
+.reader-content .cover-page .cover-author{font-size:15px;color:#666;margin-top:8px}
+.reader-content h1{font-size:22px;text-align:center;margin:0 0 24px;color:#1a1a1a;border-bottom:1px solid #ddd;padding-bottom:12px}
+.reader-content p{text-indent:2em;margin-bottom:16px;font-size:var(--reader-fs,16px);line-height:1.85;color:#3a3a3a}
+.reader-content .meta-info{font-size:13px;color:#888;text-align:center;margin-top:16px}
+.reader-page{display:none}
+.reader-page.active{display:block;animation:fadeIn .4s ease}
+
+/* ========== Before/After Comparison ========== */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:768px){.compare{grid-template-columns:1fr}}
+.compare-card{overflow:hidden;border-radius:var(--radius)}
+.compare-card .label{
+  padding:10px 20px;font-size:14px;font-weight:600;text-align:center;
+}
+.compare-card.before .label{background:rgba(248,113,113,.12);color:var(--danger)}
+.compare-card.after .label{background:rgba(110,231,183,.12);color:var(--accent)}
+.compare-body{padding:20px;font-size:14px;line-height:1.8;min-height:180px}
+.compare-card.before .compare-body{
+  background:rgba(248,113,113,.03);color:#999;font-family:monospace;
+  word-break:break-all;
+}
+.compare-card.after .compare-body{
+  background:rgba(110,231,183,.03);color:var(--txt);font-family:'Georgia','Noto Serif SC',serif;
+}
+.ocr-error{background:rgba(248,113,113,.15);color:var(--danger);padding:0 2px;border-radius:2px}
+.ocr-fixed{background:rgba(110,231,183,.15);color:var(--accent);padding:0 2px;border-radius:2px}
+
+/* ========== Tech Highlights ========== */
+.tech-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+.tech-card{
+  padding:28px 24px;border-radius:var(--radius);transition:all .3s;
+  background:var(--glass);border:1px solid var(--glass-bd);
+}
+.tech-card:hover{transform:translateY(-4px);border-color:var(--accent2);background:rgba(96,165,250,.06)}
+.tech-card .tc-icon{font-size:32px;margin-bottom:14px;display:block}
+.tech-card h4{font-size:17px;margin-bottom:8px}
+.tech-card p{font-size:13px;color:var(--txt-dim);line-height:1.6}
+
+/* ========== Footer ========== */
+footer{padding:48px 0;text-align:center;border-top:1px solid var(--glass-bd);margin-top:40px}
+footer p{color:var(--txt-mute);font-size:13px}
+footer a{color:var(--accent2);text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+/* ========== Animations ========== */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeInDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.2)}}
+@keyframes arrowPulse{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+
+.reveal{opacity:0;transform:translateY(30px);transition:all .6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:rgba(0,0,0,.1)}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.25)}
+</style>
+</head>
+<body>
+
+<!-- ========== HERO ========== -->
+<section id="hero">
+  <div class="wrap">
+    <div class="hero-badge"><span class="dot"></span> TRAE AI 创造力大赛 · 生活娱乐赛道</div>
+    <h1 class="hero-title">PDF2BOOK</h1>
+    <p class="hero-sub">让 AI 当你的电子书排版师 — 一句话把扫描版 PDF 变成 Kindle 友好的 EPUB</p>
+    <div class="hero-flow">
+      <div class="flow-item pdf glass">
+        <span class="flow-icon">📄</span>
+        <span class="flow-label">扫描版 PDF</span>
+      </div>
+      <div class="flow-arrow">
+        <span style="font-size:28px">→</span>
+        <span class="ai-tag">AI 全自动</span>
+        <span style="font-size:28px">→</span>
+      </div>
+      <div class="flow-item epub glass">
+        <span class="flow-icon">📖</span>
+        <span class="flow-label">成品 EPUB</span>
+      </div>
+    </div>
+    <button class="hero-cta" onclick="document.getElementById('input').scrollIntoView()">
+      👇 点击体验完整流程
+    </button>
+    <div class="hero-stats">
+      <div class="stat"><div class="stat-num">162</div><div class="stat-label">页扫描书自动处理</div></div>
+      <div class="stat"><div class="stat-num">42</div><div class="stat-label">章自动分章</div></div>
+      <div class="stat"><div class="stat-num">9</div><div class="stat-label">步全自动流程</div></div>
+      <div class="stat"><div class="stat-num">0</div><div class="stat-label">手动干预步骤</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== STEP 1: INPUT ========== -->
+<section id="input">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="section-tag">Step 1 · 输入</span>
+      <h2 class="section-title">扫描版 PDF 在 Kindle 上根本看不清</h2>
+      <p class="section-sub">这是真实的输入——《希腊神话故事》162 页扫描版 PDF。在 6 寸 Kindle 屏幕上，字体小到需要放大镜，而且无法调整字号、无法搜索、没有目录。</p>
+    </div>
+    <div class="input-demo reveal">
+      <div class="kindle-mock">
+        <div class="kindle-screen">
+          <img src="assets/scan-body.jpg" alt="扫描版PDF页面">
+          <div class="kindle-overlay">⚠️ 6 寸屏上字体仅 2-3mm，阅读体验差</div>
+        </div>
+      </div>
+      <div class="input-explain">
+        <h3>😣 传统方案的痛点</h3>
+        <ul class="pain-list">
+          <li><span class="icon">📐</span><span>扫描 PDF 在 Kindle 上字太小，放大后要左右滑屏，体验极差</span></li>
+          <li><span class="icon">🔄</span><span>Calibre 等工具只能"机械搬运"，输出一坨无结构长文本，没有目录、没有分章</span></li>
+          <li><span class="icon">✏️</span><span>手动排版要数小时：逐页判断封面/目录/正文、手填书名作者、校对 OCR 错字、调分章参数</span></li>
+          <li><span class="icon">🧩</span><span>OCR 工具识别完就结束，不"理解"内容结构，用户还得自己整理章节</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== CONTRAST: BEFORE / AFTER SLIDER ========== -->
+<section id="contrast">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="section-tag">核心对比</span>
+      <h2 class="section-title">同一个页面，天壤之别</h2>
+      <p class="section-sub">拖动中间的滑块，亲眼看扫描版 PDF 和 AI 生成的 EPUB 之间的差距。左边：字小到看不清的扫描图。右边：干净、可读、可调字号的 EPUB 正文。</p>
+    </div>
+    <div class="contrast-toolbar reveal">
+      <span class="toolbar-label">EPUB 字号调节</span>
+      <button class="contrast-font-btn" onclick="contrastFontAdj(-2)" title="缩小字号">A−</button>
+      <span class="contrast-fs-display" id="contrastFsDisplay">20px</span>
+      <button class="contrast-font-btn" onclick="contrastFontAdj(2)" title="放大字号">A+</button>
+    </div>
+    <div class="kindle-frame reveal">
+      <div class="kindle-screen">
+        <div class="contrast-box" id="contrastBox">
+          <div class="contrast-layer contrast-before">
+            <img src="assets/scan-body.jpg" alt="扫描版PDF第10页">
+            <div class="contrast-label before-lbl">扫描版 PDF · 整页</div>
+          </div>
+          <div class="contrast-layer contrast-after" id="contrastAfter">
+            <div class="epub-page" id="contrastEpub">
+              <h3>奥林匹斯山诸神</h3>
+              <p>很久很久以前，世界只是一片混沌。也不知道过了多少年，这片混沌之中有了动静，诞生了世界上第一位神只——大地之母该亚。紧接着，混沌之中又诞生了其他的一些神只，比如爱神埃罗斯、黑暗之神埃瑞波斯和黑夜之神尼克斯等。黑暗之神埃瑞波斯和黑夜之神尼克斯结合在一起，生下了光明之神埃忒耳和白昼之神赫墨拉。从此光明充满这个世界，黑夜与白昼开始交替。</p>
+              <p>天空和地狱的神祇也诞生了，他们是天空之神乌拉诺斯、地狱之神塔耳塔洛斯。大地之母该亚广阔无边，威力无穷，是后来在她身上生活和生长的一切生命的源泉。该亚就像一个飘浮的巨大圆片，在她下面深不可测的地方，是阴森森的地狱——塔耳塔洛斯；在大地之上，是蔚蓝的、无边无际的天空——乌拉诺斯。</p>
+              <p>天空之神乌拉诺斯娶了大地之母该亚为妻，成为世界的主宰。他们生了六个儿子和六个女儿，这十二个神只力大无穷、性格暴躁，被称为提坦神。</p>
+              <p>除了这十二个提坦神之外，大地之母该亚还生了三个只有一只眼睛的独眼巨人，和三个巍峨如山、各有五十只脑袋和一百只手臂的巨人。这六个巨人个个力大无比，令人畏惧。</p>
+              <p>天空之神乌拉诺斯独断专行，统治越来越残暴。他也非常害怕自己这些儿子，担心他们有一天会来抢夺自己的宝座。于是，</p>
+            </div>
+            <div class="contrast-label after-lbl">AI 生成的 EPUB · 可调字号</div>
+          </div>
+          <div class="contrast-handle" id="contrastHandle">
+            <div class="handle-circle">⇄</div>
+          </div>
+          <div class="contrast-hint">← 左：整页5段压缩在6寸屏，字仅2-3mm ｜ 右：同样内容，字号可自由调大 →</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="effort-compare reveal">
+      <div class="effort-card old">
+        <span class="effort-tag">传统方案</span>
+        <div class="effort-time">3+ 小时手动排版</div>
+        <div class="effort-desc">用户需要自己完成所有"编辑决策"</div>
+        <ul class="effort-list">
+          <li><span class="ico">❌</span>逐页判断哪页是封面、版权、目录、正文</li>
+          <li><span class="ico">❌</span>手动填写书名、作者、ISBN、出版社</li>
+          <li><span class="ico">❌</span>逐字校对 OCR 识别错误</li>
+          <li><span class="ico">❌</span>手动调分章参数、排版参数</li>
+          <li><span class="ico">❌</span>手动制作目录、链接、封面</li>
+          <li><span class="ico">❌</span>输出无结构的"文字流"，没有章节</li>
+        </ul>
+      </div>
+      <div class="effort-card new">
+        <span class="effort-tag">PDF2BOOK</span>
+        <div class="effort-time">1 句话，0 干预</div>
+        <div class="effort-desc">AI 像编辑一样自动完成全部决策</div>
+        <ul class="effort-list">
+          <li><span class="ico">✅</span>AI 自动识别页面类型，跳过无关页</li>
+          <li><span class="ico">✅</span>AI 从版权页自动提取元数据</li>
+          <li><span class="ico">✅</span>AI 基于语义校对 OCR 错字</li>
+          <li><span class="ico">✅</span>AI 推断分章粒度和排版参数</li>
+          <li><span class="ico">✅</span>AI 自动生成可点击目录和封面</li>
+          <li><span class="ico">✅</span>输出分章节、有结构、Kindle 友好的 EPUB</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== STEP 2: AI PIPELINE ========== -->
+<section id="pipeline">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="section-tag">Step 2 · AI 全自动处理</span>
+      <h2 class="section-title">9 步全自动流程，AI 像编辑一样工作</h2>
+      <p class="section-sub">用户只需把 PDF 给 AI，说一句"转成 EPUB"。AI 自动完成下面全部工作——页面分类、元数据提取、OCR 校对、排版推断，全程零干预。下方流程自动循环演示：</p>
+    </div>
+    <div class="pipeline-grid reveal" id="pipeGrid"></div>
+  </div>
+</section>
+
+<!-- ========== STEP 3: OUTPUT READER ========== -->
+<section id="output">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="section-tag">Step 3 · 输出</span>
+      <h2 class="section-title">成品 EPUB — 可读、可调、有目录</h2>
+      <p class="section-sub">这是 AI 自动生成的成品。左侧目录可点击跳转，正文支持字号调节，每个故事独立成页。以下是真实的转换结果，非模拟：</p>
+    </div>
+    <div class="reader-container reveal">
+      <div class="reader-sidebar">
+        <h4>📖 目录</h4>
+        <div id="tocList"></div>
+      </div>
+      <div class="reader-main">
+        <div class="reader-toolbar">
+          <span class="book-title">希腊神话故事 · （德）古斯塔夫</span>
+          <div class="font-controls">
+            <button class="font-btn" onclick="adjustFont(-1)" title="缩小字号">A−</button>
+            <button class="font-btn" onclick="adjustFont(1)" title="放大字号">A+</button>
+          </div>
+        </div>
+        <div class="reader-content" id="readerContent"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== BEFORE / AFTER ========== -->
+<section id="compare">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="section-tag">AI 校对效果</span>
+      <h2 class="section-title">OCR 错误 → AI 自动修正</h2>
+      <p class="section-sub">AI 不只是识别文字，还理解内容语义来校对错误。左边是 OCR 原始输出（标红为错误），右边是 AI 校对后的结果（标绿为修正）：</p>
+    </div>
+    <div class="compare reveal">
+      <div class="compare-card before glass">
+        <div class="label">⛔ OCR 原始输出</div>
+        <div class="compare-body">
+          <p># <span class="ocr-error">阅读指w</span></p>
+          <p># <span class="ocr-error">尼俄昇柏</span></p>
+          <p># <span class="ocr-error">羊？送！易p</span></p>
+          <p>>[low-confidence] <span class="ocr-error">0/插我</span></p>
+          <p>>[low-confidence] <span class="ocr-error">/：</span></p>
+          <p><span class="ocr-error">06/王国缉采装</span></p>
+          <p style="margin-top:12px;color:#666;font-size:12px">↑ 标题错字、乱码、低置信度文本，传统工具直接输出，无法阅读</p>
+        </div>
+      </div>
+      <div class="compare-card after glass">
+        <div class="label">✅ AI 校对后</div>
+        <div class="compare-body">
+          <p># <span class="ocr-fixed">阅读指导</span></p>
+          <p># <span class="ocr-fixed">尼俄柏</span></p>
+          <p><span class="ocr-fixed">[装饰页已自动跳过]</span></p>
+          <p><span class="ocr-fixed">[低置信度噪声已清理]</span></p>
+          <p><span class="ocr-fixed">[低置信度噪声已清理]</span></p>
+          <p><span class="ocr-fixed">[目录文本已正确识别]</span></p>
+          <p style="margin-top:12px;color:var(--txt-mute);font-size:12px">↑ AI 理解上下文修正错字，清理噪声，跳过装饰页，输出干净文本</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== TECH HIGHLIGHTS ========== -->
+<section id="tech">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="section-tag">技术亮点</span>
+      <h2 class="section-title">AI 是决策者，不是工具调用者</h2>
+      <p class="section-sub">PDF2BOOK 的核心创新：AI 不只是调用 OCR，而是像一位编辑一样完成所有需要"理解内容"的决策。</p>
+    </div>
+    <div class="tech-grid reveal">
+      <div class="tech-card">
+        <span class="tc-icon">🧠</span>
+        <h4>页面类型识别</h4>
+        <p>AI 审查 OCR 结果，理解语义判断封面/版权/目录/正文/尾页，自动跳过无关页——规则无法穷举。</p>
+      </div>
+      <div class="tech-card">
+        <span class="tc-icon">📋</span>
+        <h4>元数据自动提取</h4>
+        <p>从版权页 OCR 文本中提取书名、作者、ISBN、出版社（CIP 标准 GB/T 12451），用户无需手填。</p>
+      </div>
+      <div class="tech-card">
+        <span class="tc-icon">✍️</span>
+        <h4>OCR 智能校对</h4>
+        <p>基于上下文语义修正错别字、调整标题层级、清理噪声。置信度三级标记，低置信度文本重点校对。</p>
+      </div>
+      <div class="tech-card">
+        <span class="tc-icon">📚</span>
+        <h4>排版参数推断</h4>
+        <p>统计 H1/H2/H3 标题分布，判断故事集 vs 长篇小说，自动选择最佳分章粒度和目录深度。</p>
+      </div>
+      <div class="tech-card">
+        <span class="tc-icon">💾</span>
+        <h4>智能缓存</h4>
+        <p>OCR 结果存 SQLite，AI 调整决策后重跑只需秒级（不用重新 OCR 数十分钟）。支持断点续作。</p>
+      </div>
+      <div class="tech-card">
+        <span class="tc-icon">🎨</span>
+        <h4>装饰图片剥离</h4>
+        <p>基于感知哈希（pHash）聚类检测重复装饰图（章节分隔符、花饰），自动从 EPUB 剥离，保护功能图。</p>
+      </div>
+      <div class="tech-card">
+        <span class="tc-icon">📖</span>
+        <h4>目录自动链接化</h4>
+        <p>自动将"标题／页码"格式目录转为可点击的竖排链接列表，跳转到对应章节。</p>
+      </div>
+      <div class="tech-card">
+        <span class="tc-icon">🔧</span>
+        <h4>完整工程实现</h4>
+        <p>642 个单元测试、配置驱动、多 OCR 后端可插拔、批量并行处理、Trae Skill 原生集成。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== FOOTER ========== -->
+<footer>
+  <div class="wrap">
+    <p>PDF2BOOK — AI 智能电子书排版师 | TRAE AI 创造力大赛参赛作品</p>
+    <p style="margin-top:8px">GitHub: <a href="https://github.com/charlesilcn/PDF2BOOK" target="_blank">github.com/charlesilcn/PDF2BOOK</a> &nbsp;|&nbsp; 真实转换案例：《希腊神话故事》162 页扫描书 → 42 章成品 EPUB</p>
+  </div>
+</footer>
+
+<script>
+// ========== Pipeline Steps ==========
+const pipeSteps = [
+  {icon:'📥',title:'接收 PDF',desc:'用户把 PDF 给 AI，说"转成 EPUB"'},
+  {icon:'🔍',title:'执行 OCR',desc:'PaddleOCR 识别文本、标题、图片、表格，结果存 SQLite 缓存'},
+  {icon:'🏷️',title:'页面类型识别',desc:'AI 判断封面/版权/目录/正文/尾页，装饰页用渲染图，正文页 OCR'},
+  {icon:'📋',title:'提取元数据',desc:'从版权页提取书名、作者、ISBN、出版社、语言（CIP 标准）'},
+  {icon:'⚙️',title:'生成配置',desc:'根据页面分析结果自动生成 config.yaml'},
+  {icon:'📝',title:'重新生成 Markdown',desc:'从缓存秒级重建 book.md，应用最新配置'},
+  {icon:'✍️',title:'OCR 智能校对',desc:'AI 修正错别字、调整标题层级、清理低置信度噪声'},
+  {icon:'📊',title:'推断排版参数',desc:'统计标题分布，判断故事集/长篇/教材，选择分章粒度'},
+  {icon:'📖',title:'生成最终 EPUB',desc:'自动用 PDF 首页作封面，生成带目录、分章节的 Kindle 优化 EPUB'},
+];
+
+const pipeGrid = document.getElementById('pipeGrid');
+pipeSteps.forEach((s,i)=>{
+  const el = document.createElement('div');
+  el.className = 'pipe-step';
+  el.id = 'pipe-'+i;
+  el.innerHTML = `
+    <span class="step-num">${String(i+1).padStart(2,'0')}</span>
+    <span class="step-check">✓</span>
+    <span class="step-icon">${s.icon}</span>
+    <div class="step-title">${s.title}</div>
+    <div class="step-desc">${s.desc}</div>
+  `;
+  pipeGrid.appendChild(el);
+});
+
+let pipeRunning = false;
+let pipeLoopTimer = null;
+let pipeInterval = null;
+function runPipelineLoop(){
+  if(pipeRunning) return;
+  pipeRunning = true;
+  pipeSteps.forEach((_,i)=>{
+    const el = document.getElementById('pipe-'+i);
+    if(el) el.classList.remove('active','done');
+  });
+  let i = 0;
+  pipeInterval = setInterval(()=>{
+    if(i>0){
+      const prev = document.getElementById('pipe-'+(i-1));
+      if(prev){ prev.classList.remove('active'); prev.classList.add('done'); }
+    }
+    if(i >= pipeSteps.length){
+      clearInterval(pipeInterval);
+      pipeLoopTimer = setTimeout(()=>{
+        pipeRunning = false;
+        runPipelineLoop();
+      }, 2000);
+      return;
+    }
+    const cur = document.getElementById('pipe-'+i);
+    if(cur) cur.classList.add('active');
+    i++;
+  }, 700);
+}
+function stopPipelineLoop(){
+  if(pipeLoopTimer){ clearTimeout(pipeLoopTimer); pipeLoopTimer = null; }
+  if(pipeInterval){ clearInterval(pipeInterval); pipeInterval = null; }
+  pipeRunning = false;
+  pipeSteps.forEach((_,i)=>{
+    const el = document.getElementById('pipe-'+i);
+    if(el) el.classList.remove('active','done');
+  });
+}
+const pipeSection = document.getElementById('pipeline');
+const pipeObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if(entry.isIntersecting) runPipelineLoop();
+    else stopPipelineLoop();
+  });
+}, { threshold: 0.15 });
+pipeObserver.observe(pipeSection);
+
+// ========== EPUB Reader ==========
+const chapters = [
+  {id:'cover', title:'封面', type:'cover'},
+  {id:'ch1', title:'前言', type:'chapter'},
+  {id:'ch3', title:'奥林匹斯山诸神', type:'chapter'},
+  {id:'ch4', title:'普罗米修斯', type:'chapter'},
+  {id:'ch5', title:'丢卡利翁和皮拉', type:'chapter'},
+  {id:'ch11', title:'欧罗巴', type:'chapter'},
+  {id:'ch15', title:'珀耳修斯', type:'chapter'},
+  {id:'ch19', title:'代达罗斯和伊卡洛斯', type:'chapter'},
+  {id:'ch24', title:'弥达斯国王', type:'chapter'},
+  {id:'ch29', title:'西绪福斯', type:'chapter'},
+  {id:'ch30', title:'俄耳甫斯和欧律狄刻', type:'chapter'},
+  {id:'ch32', title:'阿耳戈英雄的故事', type:'chapter'},
+  {id:'ch39', title:'俄狄浦斯的悲剧', type:'chapter'},
+  {id:'meta', title:'版权信息', type:'meta'},
+];
+
+const chapterContent = {
+  cover: `<div class="cover-page">
+    <img src="assets/cover.jpg" alt="封面">
+    <div class="cover-title">希腊神话故事</div>
+    <div class="cover-author">（德）古斯塔夫 · 著</div>
+    <div class="meta-info">花山文艺出版社 · 2018.9 · ISBN 978-7-5511-4286-1</div>
+  </div>`,
+  ch1: `<h1>前言</h1>
+<p>在众多的世界神话传说和宗教传说中，希腊神话中的诸神无疑是一个另类，是最不像神的神，闪耀着人性美。他们不同于其他世界神话传说中那些至高无上、统治一切的神，而是与人类一样，也有着喜怒哀乐、爱恨情仇以及嫉妒、会犯错、有缺点等凡俗的情感。奥林匹斯山诸神身上所体现出来的"人性"正是希腊神话成为西方文化渊源的魅力之源。</p>
+<p>希腊神话除了诸神的故事之外，还包括英雄传说。这些英雄传说中的英雄多是神与人结合所生的后代，不同的英雄和事件又形成了几个传说的系列。古希腊的英雄传说起源于祖先崇拜，古希腊人怀念自己部落的领袖和英雄人物，便在历史的基础上，发挥想象力，创造出许多生动的英雄故事。</p>
+<p>意大利思想家维柯说："不是神创造了人，而是人按照自己的形象创造了神，神是人的本质的对象化。"我们从希腊神话中可以看出古希腊人的审美倾向，脱离世俗、一尘不染的道德偶像并不是最理想化的，而正是每个活生生的人，有着健美的躯体、人性的闪光点，却也同时会犯错、有缺点的才是最符合其审美倾向的。所以，希腊神话中的诸神其实就是古希腊人民所希望成为的自己。</p>
+<p>在关于希腊神话的诸多改写本中，19世纪德国浪漫派作家古斯塔夫·施瓦布（1792—1850）题为"古希腊神话与传说"（1840年，共三卷）是较有名的，这部书成为了解和熟悉古希腊神话和传说的最好读物之一。本书收录了古希腊神话中一批最具代表性的神的故事，包括神的谱系、人类的起源以及那些冒险传奇的故事，引领读者步入希腊神话的神奇殿堂。</p>`,
+  ch3: `<h1>奥林匹斯山诸神</h1>
+<p>很久很久以前，世界只是一片混沌。也不知道过了多少年，这片混沌之中有了动静，诞生了世界上第一位神只——大地之母该亚。紧接着，混沌之中又诞生了其他的一些神只，比如爱神埃罗斯、黑暗之神埃瑞波斯和黑夜之神尼克斯等。黑暗之神埃瑞波斯和黑夜之神尼克斯结合在一起，生下了光明之神埃忒耳和白昼之神赫墨拉。从此光明充满这个世界，黑夜与白昼开始交替。</p>
+<p>天空和地狱的神祇也诞生了，他们是天空之神乌拉诺斯、地狱之神塔耳塔洛斯。大地之母该亚广阔无边，威力无穷，是后来在她身上生活和生长的一切生命的源泉。该亚就像一个飘浮的巨大圆片，在她下面深不可测的地方，是阴森森的地狱——塔耳塔洛斯；在大地之上，是蔚蓝的、无边无际的天空——乌拉诺斯。</p>
+<p>天空之神乌拉诺斯娶了大地之母该亚为妻，成为世界的主宰。他们生了六个儿子和六个女儿，这十二个神只力大无穷、性格暴躁，被称为提坦神。</p>
+<p>除了这十二个提坦神之外，大地之母该亚还生了三个只有一只眼睛的独眼巨人，和三个巍峨如山、各有五十只脑袋和一百只手臂的巨人。这六个巨人个个力大无比，令人畏惧。</p>
+<p>天空之神乌拉诺斯独断专行，统治越来越残暴。他也非常害怕自己这些儿子，担心他们有一天会来抢夺自己的宝座。于是，他将儿子们关入地狱无尽的黑暗之中。大地之母该亚不满乌拉诺斯的残暴统治，便鼓动儿子们起来反抗乌拉诺斯，可是他们都不敢同父亲争斗。于是，该亚采来大地深处最坚硬的岩石，打造了一把锋利的镰刀。她告诉儿子们，只要有人敢去刺杀乌拉诺斯，他便可以继承王位，成为下一任神王。</p>`,
+  ch4: `<h1>普罗米修斯</h1>
+<p>天地已经应运而生。波澜壮阔的大海冲击着海岸，鱼儿在波涛中自由地嬉戏。鸟儿在天空中展翅飞翔，欢乐地歌唱。大地上，动物成群，生机盎然。然而尘世间还没有一个拥有灵魂的躯体能够主宰这个世界。</p>
+<p>于是，普罗米修斯降临在大地上。他是古老的神族后裔，是伊阿珀托斯的儿子。伊阿珀托斯是提坦巨人，是天穹之神乌拉诺斯和大地女神该亚的后代。他们曾经统治世界，但后来却被宙斯家族推翻并取代。普罗米修斯既聪明又手脚灵巧，他知道大地正孕育着天神的种子，因此就用河水调和黏土，按照世界主宰，也就是天神的模样，捏造出一个形体。</p>
+<p>为了赋予它生命，普罗米修斯取来了动物灵魂中善与恶的两部分，将它们封锁在泥塑的胸内。普罗米修斯在 天神中有一位朋友，名叫雅典娜，是智慧女神。雅典娜对他创造出的泥塑感到十分惊奇，便对着这个只有一半生命的泥塑吹了一口神气，让它瞬间就充满了生气。</p>
+<p>尘世间的人类就这样被创造了出来，他们繁衍后代，很快就遍布了整个大地。然而，他们却在很长一段时间内不知道该如何运用自己的四肢以及神赐的灵魂。他们虽然有眼睛，但却什么也看不见；虽然有耳朵，却什么也听不见。他们就像梦中的幽灵，漫无目的地走来走去，完全不知道该如何发挥自身的作用。</p>
+<p>于是，普罗米修斯便来帮助人类。他教会人类观察天体运行以及日月升落；教会人类运算数学以及运用书写符号进行沟通；教会人类驾驭牲畜，让它们分担自己的劳作；教会人类给马匹套上缰绳，用来拉车或是成为坐骑。他还发明了船只，用于海上航行。他关心人类生活中的一切事物，教会人类如何生活。</p>`,
+  ch5: `<h1>丢卡利翁和皮拉</h1>
+<p>在青铜人类时代，众神之父宙斯听说了这代人的罪恶行为，便决定化作凡人去大地视察一番。等他下凡到大地，宙斯却发现这代人的罪孽比传说中的还要深重。</p>
+<p>一天晚上，宙斯趁着夜色走进阿耳卡狄亚国王吕卡翁的宫殿。吕卡翁以残暴野蛮而被人们所知。宙斯通过神奇的预兆显示自己是一位天神，众人都虔诚地跪在他面前进行膜拜。吕卡翁却对这些虔诚的跪拜者嗤之以鼻："让我们见识一下，这位客人到底是神还是人！"吕卡翁内心深处早就预谋要在半夜时分，将熟睡的客人杀死。</p>`,
+  ch11: `<h1>欧罗巴</h1>
+<p>阿革诺耳国王统治着腓尼基，他是海神波塞冬的儿子。他有一个女儿叫欧罗巴，一直生活在父亲的宫殿里，深居简出。</p>
+<p>一天夜里，欧罗巴做了一个奇异的梦。她梦见世界的两大洲——亚细亚和对面的大陆——都化作了女人的形象，正在激烈地争夺着她。亚细亚女人穿着东方人的服装，温存而慈爱地对她说话，说欧罗巴是她的孩子，是她把她抚养长大的。而那个陌生大陆的女人则紧紧地抱住她，要将她带到宙斯那里去。</p>`,
+  ch15: `<h1>珀耳修斯</h1>
+<p>在希腊神话中，珀耳修斯是最著名的英雄之一。他是宙斯与达那厄的儿子，一生充满了传奇的冒险故事。他的外祖父阿克里西俄斯曾得到一个神谕，说他将被自己的外孙所杀。为了躲避这个命运，他将女儿达那厄关进了一座铜塔里。</p>
+<p>然而，宙斯化作一阵金雨来到了达那厄身边，珀耳修斯就这样诞生了。阿克里西俄斯发现后，将母子二人装进一个木箱，扔进了大海。海浪将他们冲到了塞里福斯岛，被渔夫狄克提斯救起。狄克提斯的哥哥波吕得克忒斯是岛上的国王，他爱上了美丽的达那厄，却把珀耳修斯视为眼中钉。</p>`,
+  ch19: `<h1>代达罗斯和伊卡洛斯</h1>
+<p>在希腊神话中，代达罗斯是著名的工匠和发明家，他的手艺无人能及。然而，他也是希腊神话中最具悲剧色彩的人物之一。代达罗斯曾经因为嫉妒侄子的才能，将他推下了雅典卫城，从此开始了流亡生涯。</p>
+<p>代达罗斯来到克里特岛，为国王米诺斯建造了著名的迷宫，里面关着牛头人身的怪物弥诺陶洛斯。然而，当忒修斯在公主阿里阿德涅的帮助下杀死了怪物并逃出了迷宫后，米诺斯国王勃然大怒，将代达罗斯和他的儿子伊卡洛斯关进了迷宫。</p>`,
+  ch24: `<h1>弥达斯国王</h1>
+<p>弥达斯是弗里吉亚的国王，他以富有而闻名。然而，他最著名的不是他的财富，而是他那点石成金的传说。弥达斯国王虽然富有，但并不聪明，反而常常因为贪婪而给自己招来麻烦。</p>
+<p>有一次，酒神狄俄尼索斯的义父西勒诺斯喝醉了酒，迷了路，误入了弥达斯的花园。弥达斯热情地款待了他，并将他送回了狄俄尼索斯身边。狄俄尼索斯为了报答弥达斯，答应满足他一个愿望。</p>`,
+  ch29: `<h1>西绪福斯</h1>
+<p>西绪福斯是科林斯的国王，他被称为最狡猾的人。在希腊神话中，他以聪明和狡诈著称，甚至多次欺骗了死神和冥王。然而，他的狡猾最终也给他带来了永恒的惩罚。</p>
+<p>有一次，宙斯掳走了河神阿索波斯的女儿埃癸娜。西绪福斯告诉河神是宙斯带走了他的女儿，以此换取了一道泉水。宙斯大怒，命令死神塔纳托斯去捉拿西绪福斯。然而，狡猾的西绪福斯竟然骗过了死神，将他绑了起来，结果很长时间都没有人死亡。</p>`,
+  ch30: `<h1>俄耳甫斯和欧律狄刻</h1>
+<p>俄耳甫斯是希腊神话中最伟大的音乐家，他的歌声和琴声可以感动万物。他的父亲是缪斯女神卡利俄佩，母亲赐予了他非凡的音乐天赋。阿波罗送给他一把竖琴，从此，他的琴声可以驯服猛兽，让树木低头，让石头移动。</p>
+<p>俄耳甫斯爱上了美丽的欧律狄刻，两人结为了夫妻。然而，幸福的日子并不长久。欧律狄刻在草地上散步时，不慎被毒蛇咬伤，中毒身亡。俄耳甫斯悲痛欲绝，他决定亲自前往冥界，用音乐打动冥王和冥后，请求他们放回自己的妻子。</p>`,
+  ch32: `<h1>阿耳戈英雄的故事</h1>
+<p>在希腊神话中，阿耳戈英雄们的故事是最壮丽的冒险史诗之一。伊阿宋是伊俄尔科斯的合法王位继承人，然而他的叔叔珀利阿斯篡夺了王位。当伊阿宋长大后，前来索要王位时，珀利阿斯便提出了一个条件：要伊阿宋去科尔喀斯取回金羊毛。</p>
+<p>伊阿宋召集了希腊各地的英雄，包括赫拉克勒斯、俄耳甫斯等，乘坐大船阿耳戈号出发了。这就是著名的阿耳戈英雄远征的开始，他们的冒险包括与怪鸟战斗、通过撞岩、穿越沙漠等惊险历程。</p>`,
+  ch39: `<h1>俄狄浦斯的悲剧</h1>
+<p>俄狄浦斯的悲剧是希腊神话中最著名的命运悲剧。他是底比斯国王拉伊俄斯的儿子。在俄狄浦斯出生前，神谕就预言他将杀父娶母。为了逃避这个命运，拉伊俄斯命令将婴儿扔到山上。然而，牧人怜悯这个孩子，将他送给了科林斯的国王波吕波斯抚养。</p>
+<p>俄狄浦斯长大后，从神谕那里得知了自己将杀父娶母的命运。他以为波吕波斯是自己的亲生父亲，便离开了科林斯，发誓不再回来。然而，命运弄人，他在路上与一个老人发生冲突并将其杀死——那个老人正是他的亲生父亲拉伊俄斯。</p>`,
+  meta: `<h1>版权信息</h1>
+<p style="text-indent:0"><strong>书名：</strong>希腊神话故事</p>
+<p style="text-indent:0"><strong>作者：</strong>（德）古斯塔夫</p>
+<p style="text-indent:0"><strong>出版社：</strong>花山文艺出版社</p>
+<p style="text-indent:0"><strong>出版时间：</strong>2018.9</p>
+<p style="text-indent:0"><strong>ISBN：</strong>978-7-5511-4286-1</p>
+<p style="text-indent:0"><strong>语言：</strong>中文（zh-CN）</p>
+<p style="text-indent:0;margin-top:24px;color:#888;font-size:13px">以上元数据由 AI 从版权页 OCR 文本中自动提取（CIP 标准 GB/T 12451），无需手动填写。</p>
+<p style="text-indent:0;color:#888;font-size:13px">全书 162 页，AI 自动分类：封面 1 页 + 扉页 1 页 + 版权页 1 页 + 正文 157 页 + 插图 1 页 + 封底 1 页。自动分出 42 个章节，每个故事独立成页。</p>`,
+};
+
+// Build TOC
+const tocList = document.getElementById('tocList');
+chapters.forEach((ch, idx) => {
+  const a = document.createElement('a');
+  a.className = 'toc-item' + (idx === 0 ? ' active' : '');
+  a.textContent = ch.title;
+  a.href = '#';
+  a.onclick = (e) => {
+    e.preventDefault();
+    document.querySelectorAll('.toc-item').forEach(el => el.classList.remove('active'));
+    a.classList.add('active');
+    showPage(ch.id);
+  };
+  tocList.appendChild(a);
+});
+
+// Build reader pages
+const readerContent = document.getElementById('readerContent');
+chapters.forEach(ch => {
+  const div = document.createElement('div');
+  div.className = 'reader-page' + (ch.id === 'cover' ? ' active' : '');
+  div.id = 'page-' + ch.id;
+  div.innerHTML = chapterContent[ch.id] || '<p>章节内容加载中...</p>';
+  readerContent.appendChild(div);
+});
+
+function showPage(id) {
+  document.querySelectorAll('.reader-page').forEach(el => el.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) {
+    page.classList.add('active');
+    readerContent.scrollTop = 0;
+  }
+}
+
+// Font size control
+let fontSize = 16;
+function adjustFont(delta) {
+  fontSize = Math.max(12, Math.min(24, fontSize + delta));
+  readerContent.style.setProperty('--reader-fs', fontSize + 'px');
+  readerContent.querySelectorAll('p').forEach(p => p.style.fontSize = fontSize + 'px');
+}
+
+// ========== Contrast Slider ==========
+(function(){
+  const box = document.getElementById('contrastBox');
+  const handle = document.getElementById('contrastHandle');
+  const after = document.getElementById('contrastAfter');
+  if(!box || !handle || !after) return;
+
+  let dragging = false;
+
+  function setPos(x){
+    const rect = box.getBoundingClientRect();
+    let pct = ((x - rect.left) / rect.width) * 100;
+    pct = Math.max(2, Math.min(98, pct));
+    box.style.setProperty('--pos', pct + '%');
+  }
+
+  function onDown(e){
+    dragging = true;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    setPos(x);
+    e.preventDefault();
+  }
+  function onMove(e){
+    if(!dragging) return;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    setPos(x);
+  }
+  function onUp(){ dragging = false; }
+
+  handle.addEventListener('mousedown', onDown);
+  handle.addEventListener('touchstart', onDown, {passive:false});
+  // Also allow clicking anywhere on the box to move the handle
+  box.addEventListener('mousedown', function(e){
+    if(e.target === handle || handle.contains(e.target)) return;
+    const x = e.clientX;
+    setPos(x);
+    dragging = true;
+  });
+  box.addEventListener('touchstart', function(e){
+    if(e.target === handle || handle.contains(e.target)) return;
+    const x = e.touches[0].clientX;
+    setPos(x);
+    dragging = true;
+  }, {passive:false});
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+
+  // Auto-animate on first reveal for dramatic effect
+  let animated = false;
+  const revealObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting && !animated){
+        animated = true;
+        let pct = 50;
+        let dir = 1;
+        let count = 0;
+        const auto = setInterval(() => {
+          pct += dir * 1.5;
+          if(pct >= 72){ dir = -1; }
+          if(pct <= 28){ dir = 1; count++; }
+          box.style.setProperty('--pos', pct + '%');
+          if(count >= 2){
+            clearInterval(auto);
+            box.style.setProperty('--pos', '50%');
+          }
+        }, 30);
+      }
+    });
+  }, { threshold: 0.3 });
+  revealObs.observe(box);
+})();
+
+// ========== Contrast Font Size Adjustment ==========
+function contrastFontAdj(delta){
+  const page = document.getElementById('contrastEpub');
+  if(!page) return;
+  const cur = parseFloat(getComputedStyle(page).getPropertyValue('--cfs')) || 20;
+  const next = Math.max(14, Math.min(32, cur + delta));
+  page.style.setProperty('--cfs', next + 'px');
+  const display = document.getElementById('contrastFsDisplay');
+  if(display) display.textContent = next + 'px';
+}
+
+// ========== Scroll Reveal ==========
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

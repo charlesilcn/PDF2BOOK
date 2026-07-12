@@ -90,15 +90,17 @@ pip install -e ".[ocr,dev]"
 | `ocr` | PaddleOCR PP-StructureV3 (default OCR backend) | `pip install -e ".[ocr]"` |
 | `rapid` | RapidOCR lightweight backend (~50MB) | `pip install -e ".[rapid]"` |
 | `cloud` | Remote OCR API backend | `pip install -e ".[cloud]"` |
+| `gui` | Gradio Web UI (visual interface) | `pip install -e ".[gui]"` |
 | `dev` | Testing and linting tools | `pip install -e ".[dev]"` |
 
 ## Usage
 
-PDF2BOOK offers two usage modes, both letting AI fully take over proofreading/layout/metadata work so the user never needs to manually review:
+PDF2BOOK offers three usage modes, all letting AI fully take over proofreading/layout/metadata work so the user never needs to manually review:
 
 | Mode | Use case | API key required | Who does the AI work |
 |---|---|---|---|
 | **CLI mode** | Command-line batch processing, script integration | Yes (in config.yaml) | External LLM (e.g. GPT-4o-mini) |
+| **Web UI mode** | Visual interface, drag-and-drop PDF in browser | Yes (guided setup in UI) | External LLM (e.g. GPT-4o-mini) |
 | **Skill mode** | Natural-language trigger in Trae IDE | No | Trae agent's own reasoning |
 
 ### Preparation
@@ -193,6 +195,27 @@ In the Trae IDE, say "convert XX.pdf to EPUB" and the AI agent automatically com
 Under the Skill path, all `pdf2book` commands pass `--no-ai-review` and `config.yaml` explicitly writes `ai_review.enabled: false`, ensuring no external LLM calls. AI work is done by the agent itself using Read/Grep/Edit tools.
 
 See [`.trae/skills/pdf2book/SKILL.md`](.trae/skills/pdf2book/SKILL.md) for details.
+
+### Web UI Mode (Visual Interface)
+
+After installing the Gradio optional dependency, a browser-based UI is available with no need to memorize CLI arguments:
+
+```bash
+pip install -e ".[gui]"
+pdf2book gui
+```
+
+The browser opens `http://127.0.0.1:7860` automatically, offering five tabs:
+
+| Tab | Function |
+|---|---|
+| **Onboarding** | First-run detection of OCR engine and dependencies; guides API key setup (writes to `.env`, never uploaded to GitHub) |
+| **Convert** | Drag-and-drop PDF with live progress bar showing OCR/AI review/EPUB generation stages |
+| **Edit** | Preview `book.md` intermediate output; manually edit before building EPUB |
+| **Review** | View AI correction before/after diff |
+| **Library** | Browse EPUBs in `library/`, preview/replace cover images |
+
+> Use `--share` flag to create a temporary public link (Gradio tunnel) for demos.
 
 ### Migration Note (for old --ai-review users)
 
@@ -304,6 +327,17 @@ Options:
   -v, --verbose       Enable DEBUG logging
 ```
 
+### `pdf2book gui` — Web UI Launch
+
+```
+pdf2book gui [--share] [-v]
+
+# Browser opens http://127.0.0.1:7860 automatically
+# --share: create temporary public link (Gradio tunnel)
+
+# Requires optional dependency: pip install -e ".[gui]"
+```
+
 ## Configuration
 
 `pdf2book` auto-discovers `config.yaml` in the current directory (no `--config` needed). Full field example in [`config.yaml`](config.yaml):
@@ -408,8 +442,18 @@ PDF2BOOK/
     │   ├── metadata.py         # Metadata YAML read/write + BookMetadata
     │   ├── toc_links.py        # TOC linkification plain-text fallback
     │   └── templates/kindle.css # Kindle-optimized CSS
+    ├── ui/                 # Gradio Web UI (optional extension, pip install -e ".[gui]")
+    │   ├── app.py              # Assemble all tabs into gr.Blocks
+    │   ├── detect.py           # Environment/dependency detection (drives onboarding)
+    │   ├── onboarding.py       # First-run setup (OCR engine + API key)
+    │   ├── convert_tab.py      # PDF→EPUB conversion tab (live progress)
+    │   ├── edit_tab.py         # Markdown preview/edit tab
+    │   ├── review_tab.py       # AI correction before/after diff tab
+    │   ├── library_tab.py      # EPUB library management (cover preview/replace)
+    │   └── theme.py            # Glass theme + CSS animations
+    ├── progress.py         # Progress reporting abstraction (CLI/Web UI/log backends)
     ├── pdf/                # PDF rendering and metadata extraction
-    └── utils/              # SQLite cache, logging
+    └── utils/              # SQLite cache, logging, .env writer
 ```
 
 ## Trae Skill

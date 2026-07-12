@@ -96,7 +96,30 @@ def linkify_toc_entries(md_text: str) -> str:
     lines = md_text.splitlines(keepends=True)
     head = "".join(lines[:start])
     tail = "".join(lines[end:])
-    new_text = head + rendered + "\n" + tail
+
+    # 保留 TOC 标题行（如 `# 目录 {#toc}`）和替换区域内的章节标记
+    # （`:::` 关闭目录章节、`::: {.chapter}` 开始正文章节）。
+    # linkify 默认会删除整个区域内的所有内容，这会移除 H1 标题导致
+    # Pandoc 的 --split-level=1 无法在目录处分页。
+    toc_heading_line = lines[start].rstrip() if lines else ""
+    is_h1_heading = (
+        toc_heading_line.startswith("# ")
+        and not toc_heading_line.startswith("## ")
+    )
+    region_text = "".join(lines[start:end])
+    has_chapter_close = bool(re.search(r"^:::\s*$", region_text, re.MULTILINE))
+    has_chapter_open = "::: {.chapter}" in region_text
+
+    parts: list[str] = []
+    if is_h1_heading:
+        parts.append(toc_heading_line)
+    parts.append(rendered)
+    if has_chapter_close:
+        parts.append(":::")
+    if has_chapter_open:
+        parts.append("::: {.chapter}")
+
+    new_text = head + "\n\n".join(parts) + "\n" + tail
     return new_text
 
 

@@ -30,6 +30,7 @@ import httpx
 
 from pdf2book.config import AIReviewConfig
 from pdf2book.epub.metadata import BookMetadata
+from pdf2book.progress import NullReporter, ProgressReporter
 from pdf2book.utils.logger import get_logger
 
 _log = get_logger()
@@ -47,6 +48,7 @@ class AIClient:
         cfg: AIReviewConfig,
         transport: httpx.BaseTransport | None = None,
         work_dir: Path | None = None,
+        reporter: ProgressReporter | None = None,
     ) -> None:
         self.cfg = cfg
         # Optional transport injection (used by tests with httpx.MockTransport).
@@ -57,6 +59,9 @@ class AIClient:
         # Work directory for resolving page images (multimodal review).
         # When None, multimodal review falls back to text-only with a warning.
         self._work_dir = work_dir
+        # Progress reporter for batch-level progress (Web UI / CLI). Defaults
+        # to a no-op so existing callers/tests are unaffected.
+        self._reporter = reporter or NullReporter()
 
     # ------------------------------------------------------------------
     # Public API
@@ -226,6 +231,7 @@ class AIClient:
 
         all_results: list[dict] = []
         n_batches_succeeded = 0
+        self._reporter.start("ai_review", "AI 审查", len(batches))
         for i, batch in enumerate(batches, 1):
             _log.info(
                 "  batch %d/%d: %s, %d images",
@@ -240,6 +246,8 @@ class AIClient:
             if results:
                 n_batches_succeeded += 1
             all_results.extend(results)
+            self._reporter.advance("ai_review", message=f"batch {i}/{len(batches)}")
+        self._reporter.finish("ai_review")
 
         if not all_results:
             _log.warning(

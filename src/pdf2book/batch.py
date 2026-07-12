@@ -21,10 +21,11 @@ import logging
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-from rich.progress import track
+from rich.progress import track  # noqa: F401  (kept for backward-compat imports)
 
 from pdf2book.config import AppConfig, isolate_work_dir
 from pdf2book.pipeline import ConversionPipeline
+from pdf2book.progress import NullReporter, ProgressReporter
 from pdf2book.utils.logger import setup_logger
 
 
@@ -77,12 +78,23 @@ class BatchProcessor:
         pdf_paths: list[Path],
         output_dir: Path,
         resume: bool = False,
+        reporter: ProgressReporter | None = None,
     ) -> list[Path]:
         """Convert all ``pdf_paths`` to EPUBs in ``output_dir``.
 
         Returns the list of successfully generated EPUB paths. Failures are
         logged at WARNING level and don't abort the batch.
+
+        ``reporter`` is optional: when None, a ``NullReporter`` is used (no
+        progress output) — this preserves backward compatibility for existing
+        callers/tests. When a reporter is supplied (e.g. ``RichReporter`` from
+        the CLI batch command), it drives a book-level progress bar (one tick
+        per completed PDF). Subprocess workers always use the default
+        ``NullReporter`` (rich/gradio objects are not picklable across process
+        boundaries), so fine-grained per-page progress is only visible in
+        single-book runs.
         """
+        r = reporter or NullReporter()
         if not pdf_paths:
             self._log.warning("batch: no PDFs to convert")
             return []
@@ -97,6 +109,7 @@ class BatchProcessor:
         ]
 
         succeeded: list[Path] = []
+        r.start("book", "批量转换", len(jobs))
         # Use ProcessPoolExecutor even when max_workers=1 to keep the code
         # path identical (and to avoid loading OCR models in the parent).
         with ProcessPoolExecutor(max_workers=self._max_workers) as pool:
@@ -107,9 +120,7 @@ class BatchProcessor:
                 )
                 for pdf_str, out_str in jobs
             }
-            for future in track(
-                as_completed(futures), total=len(futures), description="Batch"
-            ):
+            for future in as_completed(futures):
                 pdf_path, out_path = futures[future]
                 try:
                     future.result()
@@ -119,6 +130,8 @@ class BatchProcessor:
                     self._log.warning(
                         "batch: FAIL %s (%s: %s)", pdf_path.name, type(e).__name__, e
                     )
+                r.advance("book", message=pdf_path.name)
+        r.finish("book")
         return succeeded
 
 

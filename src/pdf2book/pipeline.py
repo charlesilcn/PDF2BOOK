@@ -37,7 +37,7 @@ import logging
 import re
 from pathlib import Path
 
-from rich.progress import track
+from pdf2book.progress import NullReporter, ProgressReporter
 
 from pdf2book.config import AppConfig
 from pdf2book.epub.builder import EpubBuilder, make_epub_builder
@@ -113,9 +113,11 @@ class ConversionPipeline:
         ocr: OCRBackend | None = None,
         epub: EpubBuilder | None = None,
         cache: Cache | None = None,
+        reporter: ProgressReporter | None = None,
     ) -> None:
         self._cfg = cfg
         self._log = log or get_logger()
+        self._reporter = reporter or NullReporter()
         self._pdf = PDFExtractor(cfg.ocr)
         # `ocr`/`epub` injection seams for tests; defaults created here.
         self._ocr = ocr or make_ocr_backend(cfg.ocr)
@@ -184,12 +186,16 @@ class ConversionPipeline:
                 cache.close()
 
         # Post-processing is cheap + deterministic; always re-run.
+        self._reporter.start("postprocess", "后处理")
         self._log.info("Post-processing %d pages", len(page_results))
         page_results = self._post.run(page_results, meta)
+        self._reporter.finish("postprocess")
 
         # CIP metadata extraction + page classification (Phase 6).
         # Always runs — these are rule-based and feed into AI review.
+        self._reporter.start("classify", "元数据提取与页面分类")
         book_meta = self._extract_metadata_and_classify(page_results, meta)
+        self._reporter.finish("classify")
 
         # Markdown assembly (with low-confidence markers + title issues).
         # AI review runs AFTER this stage so it sees the actual structure.
@@ -199,9 +205,11 @@ class ConversionPipeline:
         emit_markers = (
             self._cfg.ai_review.enabled and self._cfg.ai_review.multimodal
         )
+        self._reporter.start("markdown", "Markdown 组装")
         book_md = self._post.to_markdown(
             page_results, meta, self._cfg.work_dir, emit_page_markers=emit_markers
         )
+        self._reporter.finish("markdown")
         self._log.info("Markdown written: %s", book_md)
 
         # Export metadata so build_epub can run without the original PDF.
@@ -365,7 +373,7 @@ class ConversionPipeline:
         from pdf2book.review import AIClient
 
         self._log.info("AI markdown review stage (model=%s)", cfg.model)
-        client = AIClient(cfg, work_dir=md_path.parent)
+        client = AIClient(cfg, work_dir=md_path.parent, reporter=self._reporter)
         try:
             updated_meta = client.review_markdown(md_path, meta_path, rule_meta)
         except Exception as exc:
@@ -495,7 +503,9 @@ class ConversionPipeline:
         else:
             build_md = md_path
 
+        self._reporter.start("epub", "EPUB 构建")
         self._epub.build(build_md, book_meta, out_path, cover=cover, css=css_path)
+        self._reporter.finish("epub")
         self._log.info("EPUB written: %s", out_path)
         return out_path
 
@@ -544,9 +554,11 @@ class ConversionPipeline:
 
         with self._ocr:
             pages_iter = self._pdf.render_pages(pdf_path, pages_dir)
-            for pg in track(pages_iter, description="OCR", total=total, transient=True):
+            self._reporter.start("ocr", "OCR 逐页", total)
+            for pg in pages_iter:
                 # Skip pages outside the OCR range (still rendered above).
                 if pg.index < skip_first or pg.index >= last_ocr_index:
+                    self._reporter.advance("ocr", message=f"skip page {pg.index + 1}/{total}")
                     continue
 
                 if pg.index in done:
@@ -555,6 +567,7 @@ class ConversionPipeline:
                         pr = self._ocr.from_json(cached, pg.index)
                         pr.page_image_path = pg.path
                         results.append(pr)
+                        self._reporter.advance("ocr", message=f"cache page {pg.index + 1}/{total}")
                         continue
                     # Cached page missing from DB (rare); fall through to OCR.
                     self._log.warning("page %d marked done but not in cache; re-OCR", pg.index)
@@ -564,6 +577,8 @@ class ConversionPipeline:
                 if pr.raw_json is not None:
                     cache.save(ph, pg.index, dpi, ch, pr.raw_json)
                 results.append(pr)
+                self._reporter.advance("ocr", message=f"page {pg.index + 1}/{total}")
+            self._reporter.finish("ocr")
 
         return results
 
