@@ -17,7 +17,7 @@ Traditional conversion tools only "mechanically transport" content. PDF2BOOK let
 | **OCR proofreading** | Fixes typos, adjusts heading levels, cleans noise | OCR struggles with CJK punctuation and rare characters |
 | **Layout parameter inference** | Analyzes heading distribution to distinguish story collections vs novels | Different book types need different chapter granularity |
 
-**Trae Skill one-sentence trigger**: In Trae, say "convert XX.pdf to EPUB" and the AI automatically completes a 9-step decision chain (OCR → page analysis → metadata extraction → proofreading → layout inference → EPUB generation). See [`.trae/skills/pdf2book/SKILL.md`](.trae/skills/pdf2book/SKILL.md).
+**AI Skill one-sentence trigger**: In any AI agent, say "convert XX.pdf to EPUB" and the AI automatically completes a 9-step decision chain (OCR → page analysis → metadata extraction → proofreading → layout inference → EPUB generation). See [`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md).
 
 ## Features
 
@@ -90,17 +90,15 @@ pip install -e ".[ocr,dev]"
 | `ocr` | PaddleOCR PP-StructureV3 (default OCR backend) | `pip install -e ".[ocr]"` |
 | `rapid` | RapidOCR lightweight backend (~50MB) | `pip install -e ".[rapid]"` |
 | `cloud` | Remote OCR API backend | `pip install -e ".[cloud]"` |
-| `gui` | Gradio Web UI (visual interface) | `pip install -e ".[gui]"` |
 | `dev` | Testing and linting tools | `pip install -e ".[dev]"` |
 
 ## Usage
 
-PDF2BOOK offers three usage modes, all letting AI fully take over proofreading/layout/metadata work so the user never needs to manually review:
+PDF2BOOK offers two usage modes, both letting AI fully take over proofreading/layout/metadata work so the user never needs to manually review:
 
 | Mode | Use case | API key required | Who does the AI work |
 |---|---|---|---|
 | **CLI mode** | Command-line batch processing, script integration | Yes (in config.yaml) | External LLM (e.g. GPT-4o-mini) |
-| **Web UI mode** | Visual interface, drag-and-drop PDF in browser | Yes (guided setup in UI) | External LLM (e.g. GPT-4o-mini) |
 | **Skill mode** | Natural-language trigger in Trae IDE | No | Trae agent's own reasoning |
 
 ### Preparation
@@ -194,28 +192,7 @@ In the Trae IDE, say "convert XX.pdf to EPUB" and the AI agent automatically com
 
 Under the Skill path, all `pdf2book` commands pass `--no-ai-review` and `config.yaml` explicitly writes `ai_review.enabled: false`, ensuring no external LLM calls. AI work is done by the agent itself using Read/Grep/Edit tools.
 
-See [`.trae/skills/pdf2book/SKILL.md`](.trae/skills/pdf2book/SKILL.md) for details.
-
-### Web UI Mode (Visual Interface)
-
-After installing the Gradio optional dependency, a browser-based UI is available with no need to memorize CLI arguments:
-
-```bash
-pip install -e ".[gui]"
-pdf2book gui
-```
-
-The browser opens `http://127.0.0.1:7860` automatically, offering five tabs:
-
-| Tab | Function |
-|---|---|
-| **Onboarding** | First-run detection of OCR engine and dependencies; guides API key setup (writes to `.env`, never uploaded to GitHub) |
-| **Convert** | Drag-and-drop PDF with live progress bar showing OCR/AI review/EPUB generation stages |
-| **Edit** | Preview `book.md` intermediate output; manually edit before building EPUB |
-| **Review** | View AI correction before/after diff |
-| **Library** | Browse EPUBs in `library/`, preview/replace cover images |
-
-> Use `--share` flag to create a temporary public link (Gradio tunnel) for demos.
+See [`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md) for details.
 
 ### Migration Note (for old --ai-review users)
 
@@ -327,17 +304,6 @@ Options:
   -v, --verbose       Enable DEBUG logging
 ```
 
-### `pdf2book gui` — Web UI Launch
-
-```
-pdf2book gui [--share] [-v]
-
-# Browser opens http://127.0.0.1:7860 automatically
-# --share: create temporary public link (Gradio tunnel)
-
-# Requires optional dependency: pip install -e ".[gui]"
-```
-
 ## Configuration
 
 `pdf2book` auto-discovers `config.yaml` in the current directory (no `--config` needed). Full field example in [`config.yaml`](config.yaml):
@@ -442,29 +408,30 @@ PDF2BOOK/
     │   ├── metadata.py         # Metadata YAML read/write + BookMetadata
     │   ├── toc_links.py        # TOC linkification plain-text fallback
     │   └── templates/kindle.css # Kindle-optimized CSS
-    ├── ui/                 # Gradio Web UI (optional extension, pip install -e ".[gui]")
-    │   ├── app.py              # Assemble all tabs into gr.Blocks
-    │   ├── detect.py           # Environment/dependency detection (drives onboarding)
-    │   ├── onboarding.py       # First-run setup (OCR engine + API key)
-    │   ├── convert_tab.py      # PDF→EPUB conversion tab (live progress)
-    │   ├── edit_tab.py         # Markdown preview/edit tab
-    │   ├── review_tab.py       # AI correction before/after diff tab
-    │   ├── library_tab.py      # EPUB library management (cover preview/replace)
-    │   └── theme.py            # Glass theme + CSS animations
-    ├── progress.py         # Progress reporting abstraction (CLI/Web UI/log backends)
+    ├── progress.py         # Progress reporting abstraction (CLI/log backends)
     ├── pdf/                # PDF rendering and metadata extraction
     └── utils/              # SQLite cache, logging, .env writer
 ```
 
-## Trae Skill
+## AI Skill (Cross-Platform)
 
-The project includes a built-in Trae Skill that lets an AI agent automate the complete conversion flow:
+The project includes a portable Skill file that lets any AI agent (Claude Code, Cursor, Codex, Trae, etc.) automate the complete conversion flow without an external LLM API key.
 
-- **Location**: [`.trae/skills/pdf2book/SKILL.md`](.trae/skills/pdf2book/SKILL.md)
-- **Trigger**: In Trae, say "convert XX.pdf to EPUB"
+- **Location**: [`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md)
+- **AGENTS.md**: [`AGENTS.md`](AGENTS.md) (universal AI agent entry point, auto-read by all major tools)
 - **Flow**: 9-step decision chain (OCR → page analysis → metadata extraction → OCR proofreading → layout inference → EPUB generation)
 
 Under the Skill path, the AI agent itself handles all "content understanding" decisions — no external LLM API key required.
+
+### One-Line Skill Install
+
+Paste this into your AI agent's chat — it will fetch the skill file and auto-install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/charlesilcn/PDF2BOOK/main/skills/pdf2book/SKILL.md
+```
+
+The agent reads the 9-step workflow, then you just say "convert XX.pdf to EPUB" to start.
 
 ## Contributing
 
