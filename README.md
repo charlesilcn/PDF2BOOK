@@ -1,76 +1,86 @@
 # PDF2BOOK
 
-> 让 AI 当你的电子书排版师 —— 把扫描版 PDF 一句话转成 Kindle 友好的 EPUB
+> Let AI be your e-book typesetter — convert scanned PDFs to Kindle-friendly EPUB in one sentence
 
-[English](README_EN.md) | 中文
+English | [中文](README_CN.md)
 
-PDF2BOOK 是一个 AI 驱动的自动排版工具：AI 不是简单的 OCR 调用者，而是像一位编辑一样完成所有需要"理解内容"的决策——判断页面类型、提取元数据、校对 OCR 错字、推断章节结构，最终生成带目录、分章节、Kindle 优化的 EPUB。
+PDF2BOOK is an AI-driven auto-typesetting tool. Rather than simply calling OCR, the AI acts like an editor — making all decisions that require "content understanding": judging page types, extracting metadata, proofreading OCR errors, inferring chapter structure, and ultimately generating an EPUB with a table of contents, chapter divisions, and Kindle-optimized formatting.
 
-## 核心亮点：AI 是决策者，不是工具调用者
+## Quick Start
 
-传统转换工具只会"机械搬运"，PDF2BOOK 让 AI 承担 4 项编辑决策：
+**Three steps to your first EPUB:**
 
-| AI 决策 | 做什么 | 为什么需要 AI |
-|---|---|---|
-| **页面类型识别** | 审查 OCR 结果，判断封面/版权/目录/正文/尾页 | 需要理解页面内容语义，规则无法穷举 |
-| **元数据自动提取** | 从版权页提取书名、作者、ISBN、语言 | 扫描书 PDF 内嵌元数据通常缺失 |
-| **OCR 智能校对** | 修正错别字、调整标题层级、清理噪声 | OCR 对中文标点/生僻字易出错 |
-| **排版参数推断** | 统计标题分布，判断故事集 vs 长篇小说 | 不同书类型需要不同分章粒度 |
+```bash
+# 1. Install
+git clone https://github.com/charlesilcn/PDF2BOOK.git
+cd PDF2BOOK
+pip install -e ".[ocr,dev]"
 
-**AI Skill 一句话触发**：在任何 AI agent 中说「把 XX.pdf 转成 EPUB」，AI 自动完成 9 步决策链（OCR → 分析页面 → 提取元数据 → 校对 → 推断排版 → 生成 EPUB）。详见 [`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md)。
+# 2. Drop a PDF
+cp your_book.pdf inbox/
 
-## 功能特性
+# 3. Convert
+pdf2book
+# → library/your_book.epub
+```
 
-- **OCR 识别** — 基于 PaddleOCR PP-StructureV3，识别文本、标题、图片、表格等版面元素
-- **多 OCR 后端** — 支持 `paddle_pp`（CPU 默认）、`rapid_ocr`（轻量）、`paddle_vl`（GPU 高质量）、`cloud_ocr`（远程 API）
-- **页眉页脚去除** — 自动检测并去除重复出现的页眉、页码、running head
-- **跨页段落合并** — 正确处理 CJK 标点，避免段尾/段首错误的空格
-- **标题层级推断** — 基于字号和章节模式（第X章 / Chapter N）推断 H1–H3 层级
-- **图片裁剪提取** — 按 OCR bbox 从渲染页面裁剪插图，保存为独立 PNG 引用
-- **自动页面分类** — 规则化识别封面/扉页/版权页/目录页/正文/尾页，装饰页直接用 PDF 渲染图，正文页 OCR
-- **CIP 元数据提取** — 基于 GB/T 12451 标准从版权页 OCR 文本提取书名、作者、ISBN、出版社
-- **置信度三级标记** — 基于 OCR 识别置信度，文本分为 normal / low-confidence / dropped 三级，低置信度文本保留并标记供校对
-- **AI 审查流水线** — 配置 `api_key` 后自动启用 LLM 校对低置信度文本、修正标题、提取元数据、验证书本结构；`epub` 阶段支持补做（幂等）
-- **目录自动链接化** — 自动将"标题／页码"格式目录转为可点击的竖排链接列表，跳转到对应章节
-- **装饰图片自动剥离** — 基于感知哈希（pHash）聚类检测重复出现的装饰图（章节分隔符、花饰），自动从 EPUB 中剥离；保护功能图（二维码/条形码）不被误删
-- **多模态视觉审查** — AI 审查可选发送页面图片辅助校对低置信度文本和标题（需视觉模型如 gpt-4o-mini）
-- **批量处理** — `batch` 子命令并行转换目录下所有 PDF，每个 PDF 独立工作目录和缓存
-- **断点续作** — SQLite 缓存 OCR 结果，`--resume` 跳过已完成的页面
-- **Kindle 优化排版** — 内置 `kindle.css`，`chapter_level` 控制分章粒度，每个故事/章节独立成页
-
-## 快速开始
-
-项目采用标准三文件夹结构，零配置即可使用：
+That's it. The project uses a three-folder layout with zero configuration:
 
 ```
 PDF2BOOK/
-├── inbox/       # 放入待转换的 PDF
-├── library/     # 生成的 EPUB（文件名与 PDF 同名）
-└── workspace/   # 中间产物（每本书独立子目录 workspace/{stem}/）
+├── inbox/       # Drop PDFs here
+├── library/     # Generated EPUBs (named after source PDF)
+└── workspace/   # Intermediate artifacts (per-book workspace/{stem}/)
 ```
 
-**一行命令完成转换**：
+## Two Ways to Use
+
+Both modes let AI fully handle proofreading, layout, and metadata — no manual review needed.
+
+| Mode | Use case | API key | AI work done by |
+|---|---|---|---|
+| **CLI mode** | Command-line batch, scripting | Yes (config.yaml) | External LLM (e.g. GPT-4o-mini) |
+| **Skill mode** | Natural language in any AI agent | No | Agent's own reasoning |
+
+### CLI Mode
+
+Fill in `api_key` in `config.yaml` — AI review auto-enables, no extra flags:
+
+```yaml
+ai_review:
+  api_key: "your-api-key"    # Auto-enables once filled
+  model: "gpt-4o-mini"
+```
 
 ```bash
-# 1. 把 PDF 放入 inbox/
-cp 你的书.pdf inbox/
-
-# 2. 运行（无参数）
-pdf2book
-
-# 3. EPUB 自动出现在 library/你的书.epub
+pdf2book convert inbox/your_book.pdf          # One-shot PDF → EPUB
+pdf2book ocr inbox/your_book.pdf              # PDF → Markdown (staged)
+pdf2book epub workspace/your_book/book.md -o library/your_book.epub  # Markdown → EPUB
+pdf2book batch                                 # Batch: inbox/ → library/
+pdf2book ocr inbox/your_book.pdf --resume      # Resume from cache
 ```
 
-中间产物（`book.md`、`meta.md`、页面渲染图、缓存）收纳在 `workspace/{书名}/` 子目录下，便于调试和校对。
+### Skill Mode (no API key needed)
 
-## 安装指南
+Paste this into any AI agent's chat (Claude Code, Cursor, Codex, Trae, etc.) — it fetches the skill file and auto-installs:
 
-### 系统要求
+```bash
+curl -fsSL https://raw.githubusercontent.com/charlesilcn/PDF2BOOK/main/skills/pdf2book/SKILL.md
+```
+
+Then just say "convert XX.pdf to EPUB". The agent reads the 9-step workflow, auto-checks environment, clones the repo, installs dependencies, and runs the full conversion — no external API key needed.
+
+- **Skill file**: [`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md)
+- **Agent entry**: [`AGENTS.md`](AGENTS.md) (auto-read by Claude Code, Cursor, Codex, etc.)
+
+## Installation
+
+### System Requirements
 
 - Python ≥ 3.10
-- Pandoc（由 `pypandoc_binary` 自动捆绑，无需单独安装）
+- Pandoc (bundled via `pypandoc_binary`, no separate install)
 
-### 安装步骤
+### Steps
 
 ```bash
 git clone https://github.com/charlesilcn/PDF2BOOK.git
@@ -78,443 +88,307 @@ cd PDF2BOOK
 pip install -e ".[ocr,dev]"
 ```
 
-> **注意**：`paddlepaddle` 体积较大（约 1.5GB 模型 + 依赖）。国内用户可使用镜像源加速：
+> **Note**: `paddlepaddle` is large (~1.5GB model + deps). Users in China can use a mirror:
 > ```bash
 > pip install -e ".[ocr,dev]" -i https://pypi.tuna.tsinghua.edu.cn/simple
 > ```
 
-### 可选依赖
+### Optional Dependencies
 
-| Extras | 说明 | 安装命令 |
+| Extras | Description | Install |
 |---|---|---|
-| `ocr` | PaddleOCR PP-StructureV3（默认 OCR 后端） | `pip install -e ".[ocr]"` |
-| `rapid` | RapidOCR 轻量后端（约 50MB） | `pip install -e ".[rapid]"` |
-| `cloud` | 远程 OCR API 后端 | `pip install -e ".[cloud]"` |
-| `dev` | 测试与代码检查工具 | `pip install -e ".[dev]"` |
+| `ocr` | PaddleOCR PP-StructureV3 (default backend) | `pip install -e ".[ocr]"` |
+| `rapid` | RapidOCR lightweight (~50MB) | `pip install -e ".[rapid]"` |
+| `cloud` | Remote OCR API backend | `pip install -e ".[cloud]"` |
+| `dev` | Testing and linting tools | `pip install -e ".[dev]"` |
 
-## 使用方法
+## Core Highlight: AI as Decision Maker
 
-PDF2BOOK 提供两种使用方式，都能让 AI 全面接管校对/排版/元数据工作，用户无需手动 review：
+Traditional tools only "mechanically transport" content. PDF2BOOK lets AI handle 4 editorial decisions:
 
-| 模式 | 适用场景 | 是否需要 API key | AI 工作由谁做 |
-|---|---|---|---|
-| **CLI 模式** | 命令行批量处理、脚本集成 | 需要（配置在 config.yaml） | 外部 LLM（如 GPT-4o-mini） |
-| **Skill 模式** | 在 Trae IDE 中自然语言触发 | 不需要 | Trae agent 自身推理 |
+| AI Decision | What it does | Why AI is needed |
+|---|---|---|
+| **Page type identification** | Reviews OCR results, classifies cover/copyright/TOC/body/endpages | Requires understanding page semantics; rules can't enumerate all cases |
+| **Metadata extraction** | Extracts title, author, ISBN, language from copyright page | Scanned PDF embedded metadata is usually missing |
+| **OCR proofreading** | Fixes typos, adjusts heading levels, cleans noise | OCR struggles with CJK punctuation and rare characters |
+| **Layout inference** | Analyzes heading distribution to distinguish story collections vs novels | Different book types need different chapter granularity |
 
-### 准备工作
+## Features
 
-1. 准备一本扫描版 PDF 图书（如 `世界神话传说.pdf`）
-2. 安装依赖：`pip install -e ".[ocr,dev]"`
-3. （CLI 模式）在 `config.yaml` 填入 `api_key`（见下文）；Skill 模式无需此步
+- **OCR recognition** — PaddleOCR PP-StructureV3, recognizes text, titles, images, tables, layout elements
+- **Multiple OCR backends** — `paddle_pp` (CPU default), `rapid_ocr` (lightweight), `paddle_vl` (GPU), `cloud_ocr` (remote API)
+- **Header/footer removal** — Auto-detects and removes recurring headers, page numbers, running heads
+- **Cross-page paragraph merging** — Correctly handles CJK punctuation, avoids erroneous spaces at paragraph boundaries
+- **Heading level inference** — Infers H1–H3 from font size and chapter patterns (Chapter N / 第X章)
+- **Image cropping** — Crops illustrations from rendered pages by OCR bbox, saves as standalone PNGs
+- **Automatic page classification** — Rule-based cover/frontispiece/copyright/TOC/body/endpage detection; decorative pages use PDF renders, body pages get OCR'd
+- **CIP metadata extraction** — Extracts title, author, ISBN, publisher from copyright page (GB/T 12451 standard)
+- **Three-tier confidence marking** — normal / low-confidence / dropped based on OCR confidence; low-confidence text preserved and marked for proofreading
+- **AI review pipeline** — Auto-enables with `api_key`; LLM proofreads low-confidence text, fixes headings, extracts metadata, validates structure; `epub` stage supports supplemental review (idempotent)
+- **Automatic TOC linking** — Converts "title／page-number" TOC into clickable vertical link lists
+- **Decoration image stripping** — pHash clustering detects repeated decorative images (dividers, flourishes) and strips them; protects functional images (QR codes/barcodes)
+- **Multimodal visual review** — Optional page image attachment for low-confidence text proofreading (requires vision model)
+- **Batch processing** — Parallel conversion with independent work directory and cache per PDF
+- **Resume support** — SQLite cache stores OCR results; `--resume` skips completed pages
+- **Kindle-optimized typography** — Built-in `kindle.css`, `chapter_level` controls chapter granularity, each story/chapter gets its own page
 
-### CLI 模式（需 apikey，AI 全面接管）
+## CLI Reference
 
-**配置 apikey**：在 `config.yaml` 的 `ai_review` 部分填入你的 api_key。填入后 AI 审查自动启用，无需任何额外标志：
+Running `pdf2book` (no args) equals `pdf2book batch inbox -o library`. Four subcommands:
 
-```yaml
-ai_review:
-  api_url: "https://api.openai.com/v1/chat/completions"
-  api_key: "your-api-key"    # 填入后 AI 审查自动启用
-  model: "gpt-4o-mini"
-```
-
-> **自动启用规则**：`api_key` 非空且 `enabled` 未显式写 `false` 时自动启用。若想强制关闭（例如 Skill 路径），加 `--no-ai-review` 标志或显式写 `enabled: false`。
-
-**一行命令 PDF → EPUB（一键全流程）**
-
-```bash
-pdf2book convert inbox/世界神话传说.pdf
-```
-
-默认输出到 `library/世界神话传说.epub`（文件名与 PDF 同名）。AI 全程接管：页面分类、CIP 元数据提取、OCR 错字校对、标题层级修正、排版参数推断、目录链接化，用户无需 review。
-
-**一行命令 PDF → Markdown（分步走，可预览中间结果）**
-
-```bash
-pdf2book ocr inbox/世界神话传说.pdf
-```
-
-生成 `workspace/世界神话传说/book.md` + `workspace/世界神话传说/meta.md`。如需人工微调后再构建 EPUB，可先编辑 `book.md`/`meta.md`，再运行下方命令。
-
-**一行命令 Markdown → EPUB（基于已有 OCR 结果）**
-
-```bash
-pdf2book epub workspace/世界神话传说/book.md -o library/世界神话传说.epub \
-    --cover workspace/世界神话传说/pages/page_0000.png
-```
-
-若 `book.md` 仍含 `>[low-confidence]` 标记（OCR 时未开 AI 审查），此命令会自动补做 AI 审查再构建 EPUB（幂等：已清理则跳过）。
-
-**批量处理**
-
-```bash
-pdf2book batch                       # 默认 inbox/ → library/
-# 或指定目录
-pdf2book batch ./pdfs/ -o ./epubs/ --workers 2
-```
-
-每个 PDF 获得独立的 `workspace/{stem}/` 子目录和 SQLite 缓存。RapidOCR 约 50MB/进程；PaddlePP 约 1.5GB/进程（建议 `--workers 1-2`）。
-
-**断点续作**
-
-```bash
-pdf2book ocr inbox/世界神话传说.pdf --resume
-```
-
-**强制关闭 AI 审查**（例如想保留原始 OCR 结果供手动校对）：
-
-```bash
-pdf2book convert inbox/世界神话传说.pdf --no-ai-review
-```
-
-#### 运行后产物
-
-| 文件 | 说明 |
-|---|---|
-| `workspace/{stem}/book.md` | OCR + AI 校对后的全文 Markdown |
-| `workspace/{stem}/meta.md` | CIP/AI 提取的元数据 YAML（书名、作者、语言等） |
-| `workspace/{stem}/pages/page_NNNN.png` | 每页渲染图（可用作封面） |
-| `workspace/{stem}/images/pN_eM.png` | 裁剪出的插图 |
-| `workspace/{stem}/cache.db` | SQLite 缓存，支持断点续作 |
-
-### Skill 模式（无需 apikey，agent 自身推理）
-
-在 Trae IDE 中说「把 XX.pdf 转成 EPUB」，AI agent 自动完成 9 步决策链：
-
-1. 完整 OCR（自动页面分类 + CIP 提取 + 置信度过滤）
-2. AI 审查页面结构（agent 读取 book.md 验证分类）
-3. AI 校对元数据（agent 对照封面/版权页校对 meta.md）
-4. 生成 config.yaml
-5. 重新生成 book.md（从缓存，应用最新配置）
-6. AI 校对 book.md（agent 修正低置信度文本、错别字、标题层级）
-7. AI 推断排版参数（agent 统计标题分布决定 toc_depth/chapter_level）
-8. 生成最终 EPUB
-
-Skill 路径下所有 `pdf2book` 命令加 `--no-ai-review` 标志，config.yaml 显式写 `ai_review.enabled: false`，确保不触发外部 LLM 调用。AI 工作由 agent 自身用 Read/Grep/Edit 工具完成。
-
-详见 [`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md)。
-
-### 迁移说明（旧 --ai-review 用户）
-
-旧版本的 `--ai-review` 标志已移除。迁移方式：
-- 旧用法：`pdf2book convert book.pdf -o out.epub --ai-review`
-- 新用法：在 `config.yaml` 填 `api_key`，直接 `pdf2book convert book.pdf -o out.epub`
-- 强制关闭：加 `--no-ai-review`
-
-### 常见场景
-
-**场景 1：故事集 / 短篇合集**
-
-每个故事是 H3 标题，希望每个故事独立成页、目录可跳转：
-
-```yaml
-epub:
-  toc_depth: 3        # 目录显示到故事标题
-  chapter_level: 3    # 每个 H3 故事独立分页
-```
-
-**场景 2：扫描书有封面/版权/目录页**
-
-页面分类器自动识别封面、扉页、版权页、目录页等装饰页面，装饰页直接使用 PDF 渲染图（不 OCR），正文页才进行 OCR 和内容提取。无需手动配置 `skip_pages`。
-
-**场景 3：长篇小说按章节分页**
-
-章节是 H1（`第X章`），希望每章独立成页：
-
-```yaml
-epub:
-  toc_depth: 2        # 目录显示章标题
-  chapter_level: 1    # 每个 H1 章节分页
-```
-
-## CLI 参考
-
-运行 `pdf2book`（无参数）等价于 `pdf2book batch inbox -o library`，自动扫描 inbox/ 并输出到 library/。四个子命令通过 `pdf2book <subcommand>` 调用（也支持 `python -m pdf2book`）：
-
-### `pdf2book` — 零参数默认行为
+### `pdf2book` — Zero-arg default
 
 ```
 pdf2book
-# 等价于：扫描 inbox/ 所有 PDF → 输出到 library/{stem}.epub
-# 中间产物在 workspace/{stem}/
+# Scans inbox/ → library/{stem}.epub
 ```
 
-### `pdf2book ocr` — 阶段 1：PDF → Markdown
+### `pdf2book ocr` — Stage 1: PDF → Markdown
 
 ```
 pdf2book ocr PDF [OPTIONS]
 
 Options:
-  --resume          从缓存恢复，跳过已 OCR 的页面
-  --config PATH     配置 YAML 路径（默认自动查找 cwd 的 config.yaml）
-  --backend NAME    OCR 后端：paddle_pp | rapid_ocr | paddle_vl | cloud_ocr
-  --no-ai-review    强制关闭 AI 审查（即使 config.yaml 配了 api_key）
-  -v, --verbose     启用 DEBUG 日志
+  --resume          Resume from cache, skip already-OCR'd pages
+  --config PATH     Config YAML path (auto-discovers cwd config.yaml)
+  --backend NAME    OCR backend: paddle_pp | rapid_ocr | paddle_vl | cloud_ocr
+  --no-ai-review    Force-disable AI review
+  -v, --verbose     Enable DEBUG logging
 ```
 
-### `pdf2book epub` — 阶段 2：Markdown → EPUB
+### `pdf2book epub` — Stage 2: Markdown → EPUB
 
 ```
 pdf2book epub MARKDOWN -o OUTPUT [OPTIONS]
 
 Options:
-  -o, --output PATH   输出 EPUB 路径（必填）
-  --meta PATH         元数据 YAML 路径（默认读取同级 meta.md）
-  --cover PATH        封面图片路径
-  --css PATH          CSS 样式表路径（默认内置 kindle.css）
-  --config PATH       配置 YAML 路径
-  --no-ai-review      强制关闭 AI 审查（默认在 api_key 配置后自动启用，
-                      且 book.md 含低置信度标记时自动补做）
-  -v, --verbose       启用 DEBUG 日志
+  -o, --output PATH   Output EPUB path (required)
+  --meta PATH         Metadata YAML path (defaults to sibling meta.md)
+  --cover PATH        Cover image path
+  --css PATH          CSS stylesheet path (defaults to built-in kindle.css)
+  --config PATH       Config YAML path
+  --no-ai-review      Force-disable AI review
+  -v, --verbose       Enable DEBUG logging
 ```
 
-### `pdf2book convert` — 一键模式
+### `pdf2book convert` — One-shot mode
 
 ```
 pdf2book convert [PDF] [-o OUTPUT] [OPTIONS]
 
-# 无 PDF 参数：处理 inbox/ → library/（默认行为）
-# 有 PDF 无 -o：默认输出 library/{stem}.epub
+# No PDF: process inbox/ → library/
+# PDF without -o: defaults to library/{stem}.epub
 
 Options:
-  -o, --output PATH   输出 EPUB 路径（默认：library/{stem}.epub）
-  --resume            从缓存恢复
-  --config PATH       配置 YAML 路径
-  --backend NAME      OCR 后端：paddle_pp | rapid_ocr | paddle_vl | cloud_ocr
-  --cover PATH        封面图片路径
-  --no-ai-review      强制关闭 AI 审查
-  -v, --verbose       启用 DEBUG 日志
+  -o, --output PATH   Output EPUB path (default: library/{stem}.epub)
+  --resume            Resume from cache
+  --config PATH       Config YAML path
+  --backend NAME      OCR backend
+  --cover PATH        Cover image path
+  --no-ai-review      Force-disable AI review
+  -v, --verbose       Enable DEBUG logging
 ```
 
-### `pdf2book batch` — 批量转换
+### `pdf2book batch` — Batch conversion
 
 ```
 pdf2book batch [INPUT_DIR] [-o OUTPUT_DIR] [OPTIONS]
 
-# 默认：inbox/ → library/
+# Default: inbox/ → library/
 
 Options:
-  -o, --output PATH   输出目录（默认：library/）
-  --workers N         并行工作进程数（内存随进程数线性增长）
-  --resume            从缓存恢复
-  --config PATH       配置 YAML 路径
-  --backend NAME      OCR 后端
-  --no-ai-review      强制关闭 AI 审查
-  -v, --verbose       启用 DEBUG 日志
+  -o, --output PATH   Output directory (default: library/)
+  --workers N         Parallel worker processes (memory scales linearly)
+  --resume            Resume from cache
+  --config PATH       Config YAML path
+  --backend NAME      OCR backend
+  --no-ai-review      Force-disable AI review
+  -v, --verbose       Enable DEBUG logging
 ```
 
-## 配置
+### Output Artifacts
 
-`pdf2book` 会自动查找当前目录的 `config.yaml`（无需 `--config` 显式指定）。完整字段示例见 [`config.yaml`](config.yaml)：
+| File | Description |
+|---|---|
+| `workspace/{stem}/book.md` | Full-text Markdown after OCR + AI proofreading |
+| `workspace/{stem}/meta.md` | Metadata YAML extracted by CIP/AI |
+| `workspace/{stem}/pages/page_NNNN.png` | Per-page renders (can be used as cover) |
+| `workspace/{stem}/images/pN_eM.png` | Cropped illustrations |
+| `workspace/{stem}/cache.db` | SQLite cache for resume |
+
+### Common Scenarios
+
+**Story collection** — each H3 story on its own page:
+```yaml
+epub:
+  toc_depth: 3
+  chapter_level: 3
+```
+
+**Novel** — paginate by H1 chapter:
+```yaml
+epub:
+  toc_depth: 2
+  chapter_level: 1
+```
+
+**Scanned book with cover/TOC** — page classifier auto-identifies decorative pages, no manual `skip_pages` needed.
+
+## Configuration
+
+`pdf2book` auto-discovers `config.yaml` in the current directory. Full example in [`config.yaml`](config.yaml):
 
 ```yaml
-work_dir: workspace          # 中间产物根目录（每本书在 workspace/{stem}/ 下）
-cache_db: workspace/cache.db # SQLite 缓存基路径（实际在 workspace/{stem}/cache.db）
-input_dir: inbox             # 待转换 PDF 目录
-output_dir: library          # EPUB 输出目录
+work_dir: workspace
+cache_db: workspace/cache.db
+input_dir: inbox
+output_dir: library
 
 ocr:
-  backend: paddle_pp        # paddle_pp (CPU) | rapid_ocr | paddle_vl (GPU) | cloud_ocr
-  dpi: 300                  # 渲染 DPI，越高越清晰但越慢
+  backend: paddle_pp        # paddle_pp | rapid_ocr | paddle_vl | cloud_ocr
+  dpi: 300
   use_region_detection: true
-  use_table_recognition: false
-  use_formula_recognition: false
 
 postprocess:
   drop_header_footer: true
   merge_cross_page: true
   infer_title_level: true
-  chapter_patterns:         # 章节标题正则，用于层级推断
+  chapter_patterns:
     - "第[一二三四五六七八九十百千0-9]+[章回节卷篇]"
     - "Chapter\\s+[IVX0-9]+"
 
 epub:
-  toc_depth: 2              # 目录显示到 H 几
-  chapter_level: 1          # Pandoc --split-level，在此级别处分页
-  css_path: null            # 自定义 CSS（默认 src/pdf2book/epub/templates/kindle.css）
-  cover: null               # 封面图片（推荐用 --cover 命令行参数传入）
+  toc_depth: 2              # TOC depth
+  chapter_level: 1          # Pandoc --split-level
+  css_path: null            # Custom CSS (default: built-in kindle.css)
 
 ai_review:
-  enabled: false            # 显式 false 时即使有 api_key 也不启用（Skill 路径用）
-  api_url: ""               # OpenAI 兼容的 chat/completions 端点
-  api_key: ""               # 填入后 AI 审查自动启用（无需 enabled: true）
-  model: "gpt-4o-mini"      # 模型名（约束验证循环保证质量，可用便宜模型）
-  max_tokens: 8192          # 响应 token 上限（大书需 8192 避免截断）
-  multimodal: false         # 多模态视觉审查（需视觉模型，发送页面图片辅助校对）
-  max_images: 8             # 每次审查最多发送页面图片数
+  enabled: false            # Explicit false disables even with api_key (Skill path)
+  api_url: ""               # OpenAI-compatible endpoint
+  api_key: ""               # Fill to auto-enable AI review
+  model: "gpt-4o-mini"
+  max_tokens: 8192
+  multimodal: false         # Visual review (requires vision model)
+  max_images: 8
 ```
 
-**环境变量配置**：API 密钥可通过 `.env` 文件管理，避免硬编码在 `config.yaml` 中：
+**Environment variables** — manage API keys via `.env` to avoid hardcoding:
 
 ```bash
-# 复制模板并填入真实密钥
 cp .env.example .env
-# 编辑 .env：PDF2BOOK_API_KEY=sk-your-key
+# Edit .env: PDF2BOOK_API_KEY=sk-your-key
 ```
 
-`config.yaml` 中使用 `${VAR:-default}` 语法引用环境变量：
+Use `${VAR:-default}` syntax in `config.yaml`:
 ```yaml
 ai_review:
-  api_key: ${PDF2BOOK_API_KEY:-}     # 从 .env 读取，无则空字符串
+  api_key: ${PDF2BOOK_API_KEY:-}
   api_url: ${PDF2BOOK_API_URL:-https://api.openai.com/v1/chat/completions}
 ```
 
-> `.env` 文件已被 `.gitignore` 排除，不会上传到 GitHub。`.env.example` 是模板文件，可以安全提交。
+> `.env` is gitignored; `.env.example` is safe to commit.
 
-**排版调优建议**：
+**Layout tuning guide**:
 
-| 书类型 | toc_depth | chapter_level | 说明 |
+| Book type | toc_depth | chapter_level | Description |
 |---|---|---|---|
-| 故事集 / 短篇合集 | 3 | 3 | 每个 H3 故事独立成页，目录可跳转 |
-| 长篇小说 | 2 | 1 | 按 H1 章节分页 |
-| 分章节书籍 | 2 | 2 | 按 H2 章节分页 |
-| 无章节结构 | 1 | 1 | 整本书一页 |
+| Story collection | 3 | 3 | Each H3 story on its own page |
+| Long novel | 2 | 1 | Paginate by H1 chapter |
+| Sectioned book | 2 | 2 | Paginate by H2 section |
+| No chapter structure | 1 | 1 | Whole book as one page |
 
-**内置 CSS**：`src/pdf2book/epub/templates/kindle.css`，遵循 Kindle KDP 约束（不在 body/p 设 font-size、不用 flexbox/grid/@media），中文行距 1.75、首行缩进 2em、标题居中。可通过 `--css` 覆盖。
-
-## 项目结构
+## Project Structure
 
 ```
 PDF2BOOK/
-├── inbox/                 # 放入待转换的 PDF（零配置入口）
-├── library/               # 生成的 EPUB（文件名与 PDF 同名）
-├── workspace/             # 中间产物（每本书独立子目录 workspace/{stem}/）
-├── config.yaml            # 配置文件（自动加载，无需 --config）
+├── inbox/                 # Drop PDFs here (zero-config entry)
+├── library/               # Generated EPUBs
+├── workspace/             # Intermediate artifacts (workspace/{stem}/)
+├── config.yaml            # Config (auto-loaded)
+├── AGENTS.md              # Universal AI agent entry point
+├── skills/pdf2book/SKILL.md  # Portable AI Skill file
 └── src/pdf2book/
-    ├── cli.py              # Typer CLI 入口（无参数默认处理 inbox/ → library/）
-    ├── __main__.py         # 支持 python -m pdf2book
-    ├── pipeline.py         # 两阶段流水线编排
-    ├── batch.py            # 批量并行转换（调用 isolate_work_dir 隔离每本书）
-    ├── config.py           # Pydantic 配置模型 + isolate_work_dir 共享函数
-    ├── ocr/                # OCR 后端（paddle_pp/rapid_ocr/paddle_vl/cloud_ocr + 抽象基类）
-    ├── postprocess/        # 后处理
-    │   ├── processor.py        # 编排：页眉页脚/跨页合并/标题层级/图片裁剪
-    │   ├── header_footer.py    # 页眉页脚检测与去除
-    │   ├── merger.py           # 跨页段落合并（CJK 标点感知）
-    │   ├── structure.py        # 标题层级推断 + 页面分类调度
-    │   ├── page_classifier.py  # 规则化页面类型识别（封面/扉页/版权/目录/正文/尾页）
-    │   ├── cip_extractor.py    # CIP 元数据提取（GB/T 12451）
-    │   ├── confidence_filter.py # OCR 置信度过滤与三级标记
-    │   ├── typography.py       # 中文出版排版规则
-    │   ├── decorations.py      # 装饰图片剥离（pHash 聚类 + 分隔条检测）
-    │   └── images.py           # 插图裁剪
-    ├── review/             # AI 审查流水线（config.yaml 配 api_key 自动启用）
-    │   ├── markdown_review.py  # Collector + Prompt + Applier（含 TOC 链接化）
-    │   ├── ai_client.py        # LLM 调用 + 重试 + JSON 修复
-    │   └── constraints.py      # 校正约束提取与验证
-    ├── epub/               # EPUB 构建
-    │   ├── builder.py          # Pandoc 调用 + 后处理（移除自动标题页/修复 ncx）
-    │   ├── metadata.py         # 元数据 YAML 读写 + BookMetadata
-    │   ├── toc_links.py        # 目录链接化纯文本 fallback
-    │   └── templates/kindle.css # Kindle 优化 CSS
-    ├── progress.py         # 进度报告抽象（CLI/日志多后端）
-    ├── pdf/                # PDF 渲染与元数据提取
-    └── utils/              # SQLite 缓存、日志、.env 写入
+    ├── cli.py              # Typer CLI entry
+    ├── __main__.py         # python -m pdf2book support
+    ├── pipeline.py         # Two-stage pipeline orchestration
+    ├── batch.py            # Batch parallel conversion
+    ├── config.py           # Pydantic config models
+    ├── ocr/                # OCR backends (paddle_pp/rapid_ocr/cloud_ocr)
+    ├── postprocess/        # Post-processing
+    │   ├── processor.py        # Orchestration
+    │   ├── header_footer.py    # Header/footer removal
+    │   ├── merger.py           # Cross-page merging (CJK-aware)
+    │   ├── structure.py        # Heading inference + page classification
+    │   ├── page_classifier.py  # Rule-based page type ID
+    │   ├── cip_extractor.py    # CIP metadata (GB/T 12451)
+    │   ├── confidence_filter.py # Confidence filtering & marking
+    │   ├── typography.py       # Chinese typography rules
+    │   ├── decorations.py      # Decoration stripping (pHash)
+    │   └── images.py           # Illustration cropping
+    ├── review/             # AI review pipeline (auto-enables with api_key)
+    │   ├── markdown_review.py  # Collector + Prompt + Applier
+    │   ├── ai_client.py        # LLM calls + retry + JSON repair
+    │   └── constraints.py      # Constraint validation
+    ├── epub/               # EPUB construction
+    │   ├── builder.py          # Pandoc + post-processing
+    │   ├── metadata.py         # Metadata YAML + BookMetadata
+    │   ├── toc_links.py        # TOC linkification
+    │   └── templates/kindle.css # Kindle-optimized CSS
+    ├── progress.py         # Progress reporting abstraction
+    ├── pdf/                # PDF rendering & metadata
+    └── utils/              # SQLite cache, logging, .env writer
 ```
 
-## AI Skill（跨平台）
+## AI Skill (Cross-Platform)
 
-项目内置一个可移植的 Skill 文件，让任何 AI agent（Claude Code、Cursor、Codex、Trae 等）自动完成完整的转换流程，无需外部 LLM API key。
+The project includes a portable Skill file that lets any AI agent automate the complete conversion flow without an external LLM API key.
 
-- **位置**：[`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md)
-- **AGENTS.md**：[`AGENTS.md`](AGENTS.md)（通用 AI agent 入口，所有主流工具自动读取）
-- **流程**：9 步决策链（OCR → 页面分析 → 元数据提取 → OCR 校对 → 排版推断 → EPUB 生成）
+- **Location**: [`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md)
+- **AGENTS.md**: [`AGENTS.md`](AGENTS.md) (universal entry point, auto-read by Claude Code, Cursor, Codex, etc.)
+- **Flow**: 9-step decision chain (OCR → page analysis → metadata extraction → proofreading → layout inference → EPUB generation)
 
-Skill 路径下 AI agent 自身承担所有"需要理解内容"的决策，无需外部 LLM API key。
+### One-Line Skill Install
 
-### 一键安装 Skill
-
-把这行粘贴到你的 AI 智能体对话框 — 它会自动读取技能文件并完成安装：
+Paste this into your AI agent's chat — it fetches the skill file and completes the full installation:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/charlesilcn/PDF2BOOK/main/skills/pdf2book/SKILL.md
 ```
 
-就这一步。技能文件会教智能体如何安装项目、检查依赖、并使用所有命令。智能体读取后会自动执行环境检查 → 克隆仓库 → 安装依赖，然后你只需说「把 XX.pdf 转成 EPUB」即可开始转换。
+That's it. The skill file teaches the agent how to install the project, check dependencies, and use all commands. The agent auto-runs environment check → clone repo → install dependencies, then you just say "convert XX.pdf to EPUB" to start.
 
-## 贡献说明
+## Contributing
 
-欢迎贡献代码！请遵循以下流程：
+Contributions welcome! Please follow this workflow:
 
-1. **Fork 仓库** 并克隆到本地
-2. **创建分支**：`git checkout -b feature/your-feature-name`
-3. **安装开发依赖**：`pip install -e ".[ocr,dev]"`
-4. **编写代码** 并确保通过检查：
+1. **Fork** the repository and clone locally
+2. **Create a branch**: `git checkout -b feature/your-feature-name`
+3. **Install dev dependencies**: `pip install -e ".[ocr,dev]"`
+4. **Write code** and ensure checks pass:
    ```bash
-   ruff check src/          # 代码风格检查
-   ruff format src/         # 代码格式化
-   pytest -v -m "not slow"  # 运行快速测试（无需 OCR 模型）
+   ruff check src/          # Lint
+   ruff format src/         # Format
+   pytest -v -m "not slow"  # Fast tests (no OCR model needed)
    ```
-5. **提交更改**：使用规范的 commit message（如 `feat: add xxx` / `fix: resolve xxx`）
-6. **创建 Pull Request**：描述改动内容和动机
+5. **Commit changes**: Use conventional commits (e.g., `feat: add xxx` / `fix: resolve xxx`)
+6. **Create a Pull Request**: Describe changes and motivation
 
-### 开发规范
+### Development Guidelines
 
-- **代码风格**：使用 [ruff](https://docs.astral.sh/ruff/) 检查和格式化，行宽 100
-- **类型注解**：所有公共函数需添加类型注解
-- **测试**：新功能需附带测试，标记 `slow` 的测试需要加载真实 OCR 模型
-- **commit 规范**：遵循 [Conventional Commits](https://www.conventionalcommits.org/)
+- **Code style**: [ruff](https://docs.astral.sh/ruff/) for linting and formatting, line width 100
+- **Type annotations**: Required on all public functions
+- **Testing**: New features require tests; `slow`-marked tests need real OCR models
+- **Commit convention**: [Conventional Commits](https://www.conventionalcommits.org/)
 
-### 项目架构
+### Architecture
 
-PDF2BOOK 采用模块化设计，核心分层：
+Modular design with core layers:
 
-- **OCR 层**（`ocr/`）：可插拔的 OCR 后端，统一 `OCRBackend` 抽象基类
-- **后处理层**（`postprocess/`）：规则化的文本处理，包括页面分类、CIP 提取、置信度过滤
-- **AI 审查层**（`review/`）：可选的 LLM 校对流水线，带约束验证重试循环
-- **EPUB 层**（`epub/`）：Pandoc 驱动的 EPUB 生成，含 Kindle 优化 CSS
+- **OCR layer** (`ocr/`): Pluggable backends with unified `OCRBackend` abstract base
+- **Post-processing layer** (`postprocess/`): Rule-based text processing — page classification, CIP extraction, confidence filtering
+- **AI review layer** (`review/`): Optional LLM proofreading with constraint-validation retry loop
+- **EPUB layer** (`epub/`): Pandoc-driven generation with Kindle-optimized CSS
 
-详细的 PP-StructureV3 JSON 字段映射和开发笔记见 [Developer Notes](#developer-notes) 部分。
-
-## 许可证
+## License
 
 [MIT License](LICENSE) — Copyright (c) 2026 pdf2book
-
----
-
-## Developer Notes
-
-### PP-StructureV3 JSON → Element Mapping
-
-Verified against `paddleocr==3.7.0` spike fixture
-(`tests/fixtures/spike_output/sample_page1_res.json`).
-
-#### `parsing_res_list[i]` block fields
-
-| PP-StructureV3 field | `Element` field        | Notes |
-|---|---|---|
-| `block_label`        | `type`                 | e.g. `paragraph_title`, `text`, `table`, `image` |
-| `block_content`      | `text`                 | Recognized text / table HTML / formula LaTeX |
-| `block_bbox`         | `bbox` (`x1,y1,x2,y2`) | 4-element list, page pixel coords |
-| `block_order`        | `order_index`          | XYCut reading order (starts at 1) |
-| `block_id`           | — (dropped)            | Internal PP index, redundant with `block_order` |
-| — (absent)           | `title_level`          | PP does not serialize level into JSON; filled `None`. `TitleLevelInferrer` owns level inference |
-| — (absent)           | `confidence`           | Filled by `_lookup_rec_score` matching `block_bbox` against `overall_ocr_res.rec_scores`. Falls back to `layout_det_res.boxes.score` via `_lookup_score`, then `None` |
-
-#### Top-level fields
-
-| PP-StructureV3 field | `PageResult` field | Notes |
-|---|---|---|
-| `width` / `height`   | `width` / `height` | Top-level floats, page pixel dims |
-| `parsing_res_list`   | `elements`         | Parsed via `_parse_elements` |
-| — (PP's own markdown) | `markdown_ref`    | Best-effort extracted from `res.markdown` for debug comparison only; pipeline rebuilds markdown from `Element`s |
-
-#### Ignored subtrees
-
-- `doc_preprocessor_res` — orientation/unwarping metadata, unused (we disable both).
-- `layout_det_res.boxes` — raw detection boxes with `cls_id`/`label`/`score`/`coordinate`. Already consumed by PP internally to produce `parsing_res_list`; `score` is used as a fallback for `Element.confidence` when `rec_scores` matching fails.
-- `overall_ocr_res` — full-page OCR fallback (`dt_polys`, `rec_texts`, `rec_scores`). `rec_scores` is the primary source for `Element.confidence` (matched to `block_bbox`); `dt_polys`/`rec_texts` are unused since `parsing_res_list.block_content` already carries per-block text.
-
-### Runtime vs Fixture JSON Shape
-
-PP-StructureV3 exposes the JSON payload in two shapes that `_extract_json`
-normalizes transparently:
-
-| Source | Shape | Example |
-|---|---|---|
-| Runtime `res.json` attribute | Wrapped: `{"res": {input_path, width, height, parsing_res_list, ...}}` | What `PaddlePPBackend.recognize` consumes |
-| `res.save_to_json(path)` file | Unwrapped: `{input_path, width, height, parsing_res_list, ...}` | What `tests/fixtures/spike_output/sample_page1_res.json` contains |
-
-`_extract_json` peels the `res` wrapper when present, so both shapes yield the
-same inner dict. Fixture-based unit tests pass the unwrapped dict directly;
-runtime code passes the PP result object and lets `_extract_json` peel it.
