@@ -219,3 +219,34 @@ hr {
 .toc-list a {
   text-decoration: none;
 }
+
+/* --- Per-module typesetting utility classes (Web UI) ---
+   Applied via Pandoc fenced divs: ::: {.no-indent} ... :::
+   These override the global defaults for specific modules. */
+
+/* Disable first-line indent (e.g., chapter opening, dialogue). */
+.no-indent p {
+  text-indent: 0;
+}
+
+/* Alignment overrides. */
+.align-left p {
+  text-align: left;
+}
+.align-center p {
+  text-align: center;
+}
+.align-justify p {
+  text-align: justify;
+}
+
+/* Paragraph spacing overrides. */
+.spacing-tight p + p {
+  margin-top: 0.2em;
+}
+.spacing-normal p + p {
+  margin-top: 0.5em;
+}
+.spacing-loose p + p {
+  margin-top: 1.2em;
+}
