@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF转换 - PDF2BOOK</title>
+    <link rel="stylesheet" href="../colors_and_type.css">
+    <link rel="stylesheet" href="../components.css">
+    <style>
+/* base styles */
+*,*::before,*::after{box-sizing:border-box;border-width:0;border-style:solid}
+html{-webkit-text-size-adjust:100%;tab-size:4;font-feature-settings:normal}
+body{margin:0;padding:0;line-height:inherit;font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;background:var(--background);color:var(--foreground)}
+hr{height:0;color:inherit;border-top-width:1px}
+abbr:where([title]){text-decoration:underline dotted}
+h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}
+a{color:inherit;text-decoration:inherit}
+b,strong{font-weight:bolder}
+code,kbd,samp,pre{font-family:var(--font-mono,ui-monospace,monospace);font-size:1em}
+small{font-size:80%}
+sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}
+table{text-indent:0;border-color:inherit;border-collapse:collapse}
+button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;color:inherit;margin:0;padding:0}
+button,select{text-transform:none}
+button,[type=button],[type=reset],[type=submit]{-webkit-appearance:button;background-color:transparent;background-image:none}
+:-moz-focusring{outline:auto}
+:-moz-ui-invalid{box-shadow:none}
+progress{vertical-align:baseline}
+::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}
+[type=search]{-webkit-appearance:textfield;outline-offset:-2px}
+::-webkit-search-decoration{-webkit-appearance:none}
+::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}
+summary{display:list-item}
+blockquote,dl,dd,h1,h2,h3,h4,h5,h6,hr,figure,p,pre{margin:0}
+fieldset{margin:0;padding:0}
+legend{padding:0}
+ol,ul,menu{list-style:none;margin:0;padding:0}
+dialog{padding:0}
+textarea{resize:vertical}
+input::placeholder,textarea::placeholder{opacity:1;color:var(--muted-foreground,#737373)}
+[role=button],button{cursor:pointer}
+:disabled{cursor:default}
+img,svg,video,canvas,audio,iframe,embed,object{display:block;vertical-align:middle}
+img,video{max-width:100%;height:auto}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+/* utilities */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.flex{display:flex}.inline-flex{display:inline-flex}.grid{display:grid}.block{display:block}.inline-block{display:inline-block}.hidden{display:none}
+.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.flex-shrink-0{flex-shrink:0}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}
+.items-center{align-items:center}.items-start{align-items:flex-start}.items-end{align-items:flex-end}
+.justify-center{justify-content:center}.justify-between{justify-content:space-between}.justify-end{justify-content:flex-end}
+.gap-1{gap:.25rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}
+.px-2{padding-left:.5rem;padding-right:.5rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}
+.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-8{padding-top:2rem;padding-bottom:2rem}
+.p-2{padding:.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}
+.text-xs{font-size:12px;line-height:1rem}.text-sm{font-size:13px;line-height:1.25rem}.text-base{font-size:14px;line-height:1.5rem}.text-lg{font-size:18px}.text-xl{font-size:20px}
+.font-sans{font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif)}.font-mono{font-family:var(--font-mono,ui-monospace,monospace)}
+.font-normal{font-weight:400}.font-medium{font-weight:500}.font-semibold{font-weight:600}.font-bold{font-weight:700}
+.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.tracking-tight{letter-spacing:-0.025em}
+.rounded{border-radius:var(--radius,8px)}.rounded-md{border-radius:calc(var(--radius,8px) - 2px)}.rounded-sm{border-radius:calc(var(--radius,8px) - 4px)}.rounded-full{border-radius:9999px}
+.w-full{width:100%}.h-full{height:100%}.min-h-screen{min-height:100vh}.min-w-0{min-width:0}
+.overflow-hidden{overflow:hidden}.overflow-auto{overflow:auto}.overflow-x-auto{overflow-x:auto}
+.whitespace-nowrap{white-space:nowrap}
+.text-center{text-align:center}.text-left{text-align:left}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.border{border:1px solid var(--border)}.border-t{border-top:1px solid var(--border)}.border-b{border-bottom:1px solid var(--border)}.border-l{border-left:1px solid var(--border)}.border-r{border-right:1px solid var(--border)}
+.bg-transparent{background:transparent}
+.transition-colors{transition:background-color .15s ease,color .15s ease,border-color .15s ease}
+.duration-200{transition-duration:.2s}
+.cursor-pointer{cursor:pointer}.cursor-grab{cursor:grab}.cursor-grabbing{cursor:grabbing}
+.select-none{user-select:none}
+.opacity-0{opacity:0}.opacity-50{opacity:.5}.opacity-70{opacity:.7}
+.pointer-events-none{pointer-events:none}
+.relative{position:relative}.absolute{position:absolute}.fixed{position:fixed}.sticky{position:sticky}
+.top-0{top:0}.left-0{left:0}.right-0{right:0}.bottom-0{bottom:0}
+.z-10{z-index:10}.z-20{z-index:20}.z-50{z-index:50}
+.inset-0{inset:0}
+.w-3{width:.75rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-9{width:2.25rem}.w-10{width:2.5rem}.w-12{width:3rem}
+.h-3{height:.75rem}.h-4{height:1rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.h-9{height:2.25rem}.h-10{height:2.5rem}.h-12{height:3rem}
+.max-w-xs{max-width:20rem}.max-w-sm{max-width:24rem}.max-w-md{max-width:28rem}.max-w-lg{max-width:32rem}.max-w-xl{max-width:36rem}
+.aspect-video{aspect-ratio:16/9}
+.object-cover{object-fit:cover}
+.grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.col-span-2{grid-column:span 2/span 2}
+.space-y-1>*+*{margin-top:.25rem}.space-y-2>*+*{margin-top:.5rem}.space-y-3>*+*{margin-top:.75rem}.space-y-4>*+*{margin-top:1rem}
+.space-x-1>*+*{margin-left:.25rem}.space-x-2>*+*{margin-left:.5rem}
+.mx-auto{margin-left:auto;margin-right:auto}
+.mt-0\.5{margin-top:.125rem}.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}
+.mb-1{margin-bottom:.25rem}.mb-1\.5{margin-bottom:.375rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.mb-8{margin-bottom:2rem}
+.ml-1{margin-left:.25rem}.ml-2{margin-left:.5rem}.ml-auto{margin-left:auto}.-ml-2{margin-left:-.5rem}
+.mr-1{margin-right:.25rem}.mr-2{margin-right:.5rem}
+.leading-none{line-height:1}.leading-relaxed{line-height:1.625}.leading-tight{line-height:1.25}
+@media (min-width: 640px){.sm\:px-6{padding-left:1.5rem;padding-right:1.5rem}.sm\:py-10{padding-top:2.5rem;padding-bottom:2.5rem}}
+    </style>
+
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <div class="app-shell">
+      <aside class="sidebar" data-component="sidebar">
+        <div class="workspace-btn">
+          <span class="ws-avatar"></span>
+          <span class="ws-name">PDF2BOOK</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ws-chevron"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+        </div>
+        <button class="cta-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <span>新建转换</span>
+        </button>
+        <nav class="nav-list">
+          <a href="dashboard.html" class="nav-item" data-dom-id="nav-dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+            <span>仪表盘</span>
+          </a>
+          <a href="convert.html" class="nav-item active">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            <span>转换</span>
+          </a>
+          <a href="library.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg>
+            <span>书库</span>
+          </a>
+          <a href="review.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>AI审查</span>
+          </a>
+          <a href="edit.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg>
+            <span>排版编辑</span>
+          </a>
+        </nav>
+        <button class="section-head">
+          <span>最近文件</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="recent-list">
+          <button class="recent-item">
+            <span class="recent-dot"></span>
+            <span class="recent-text truncate">三体.epub</span>
+          </button>
+          <button class="recent-item">
+            <span class="recent-dot"></span>
+            <span class="recent-text truncate">百年孤独.epub</span>
+          </button>
+          <button class="recent-item">
+            <span class="recent-dot"></span>
+            <span class="recent-text truncate">人类简史.epub</span>
+          </button>
+          <button class="recent-item is-more">
+            <span class="recent-dot">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+            </span>
+            <span class="recent-text">更多</span>
+          </button>
+        </div>
+        <div class="nav-meta">
+          <button class="user-pill">
+            <span class="ws-avatar"></span>
+            <span class="user-handle truncate">charl</span>
+            <span class="plan-badge">Pro</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div class="search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+            <input aria-label="搜索" placeholder="搜索文件、项目或命令…">
+          </div>
+          <div class="toolbar">
+            <button class="icon-btn focusable" aria-label="通知">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+            </button>
+            <button class="icon-btn focusable" aria-label="命令面板">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg>
+            </button>
+            <div class="user-chip">
+              <div class="avatar">C</div>
+              <div class="user-chip-text">
+                <div class="user-name truncate">charl</div>
+                <div class="user-role truncate">本地工作区</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section class="screen-shell">
+          <div class="hero">
+            <div>
+              <div class="eyebrow">Convert</div>
+              <h1 style="text-wrap: balance; word-break: keep-all; overflow-wrap: break-word;">PDF → EPUB 转换</h1>
+              <p>上传PDF文件或从inbox选择，开始OCR识别与转换。</p>
+            </div>
+          </div>
+
+          <div class="panel-grid">
+            <!-- Left column: Upload / Config -->
+            <article class="card" data-component="card">
+              <div class="card-header">
+                <div>
+                  <div class="eyebrow">Upload</div>
+                  <h3>上传文件</h3>
+                </div>
+              </div>
+
+              <!-- Drag & drop zone -->
+              <div class="drop-zone">
+                <div class="drop-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8l-4-4"/><path d="m12 21 4-4"/><path d="M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284"/></svg>
+                </div>
+                <div class="drop-title">拖拽PDF文件到此处，或点击选择</div>
+                <div class="drop-sub">支持 PDF 格式，单文件最大 500MB</div>
+                <button class="btn btn-secondary mt-2">选择文件</button>
+              </div>
+
+              <!-- File selector -->
+              <div class="field-row">
+                <label class="field-label">或从 inbox/ 选择</label>
+                <div class="select-shell">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+                  <span class="select-value truncate">三体.pdf</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="select-caret"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+
+              <!-- Options -->
+              <div class="toggle-list">
+                <button class="toggle-input is-on focusable">
+                  <div>
+                    <strong>断点续传（跳过已OCR页面）</strong>
+                    <div class="field-note">已完成的OCR页面将被跳过，节省时间。</div>
+                  </div>
+                  <div class="toggle-core"><span></span></div>
+                </button>
+                <button class="toggle-input is-on focusable">
+                  <div>
+                    <strong>启用AI审查</strong>
+                    <div class="field-note">AI自动检查排版质量并修复常见问题。</div>
+                  </div>
+                  <div class="toggle-core"><span></span></div>
+                </button>
+              </div>
+
+              <!-- Cover upload -->
+              <div class="field-row">
+                <label class="field-label">封面图片（可选）</label>
+                <div class="cover-upload">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                  <span class="truncate">选择封面图片</span>
+                </div>
+              </div>
+
+              <!-- Primary action -->
+              <button class="btn btn-primary btn-large">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></svg>
+                <span>开始转换</span>
+              </button>
+            </article>
+
+            <!-- Right column: Progress -->
+            <article class="card" data-component="card">
+              <div class="card-header">
+                <div>
+                  <div class="eyebrow">Progress</div>
+                  <h3>转换进度</h3>
+                </div>
+                <span class="table-pill review">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  进行中
+                </span>
+              </div>
+
+              <!-- Stage checklist -->
+              <div class="stage-list">
+                <div class="stage-item done">
+                  <span class="stage-icon success">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  </span>
+                  <div class="stage-info">
+                    <div class="stage-name">OCR识别</div>
+                    <div class="stage-detail">245 / 245 页</div>
+                  </div>
+                </div>
+                <div class="stage-item done">
+                  <span class="stage-icon success">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  </span>
+                  <div class="stage-info">
+                    <div class="stage-name">页面分类</div>
+                    <div class="stage-detail">完成</div>
+                  </div>
+                </div>
+                <div class="stage-item done">
+                  <span class="stage-icon success">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  </span>
+                  <div class="stage-info">
+                    <div class="stage-name">后处理</div>
+                    <div class="stage-detail">完成</div>
+                  </div>
+                </div>
+                <div class="stage-item active">
+                  <span class="stage-icon pending">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </span>
+                  <div class="stage-info">
+                    <div class="stage-name">Markdown生成</div>
+                    <div class="stage-detail">进行中...</div>
+                  </div>
+                </div>
+                <div class="stage-item">
+                  <span class="stage-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+                  </span>
+                  <div class="stage-info">
+                    <div class="stage-name muted-text">AI审查</div>
+                    <div class="stage-detail muted-text">等待中</div>
+                  </div>
+                </div>
+                <div class="stage-item">
+                  <span class="stage-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+                  </span>
+                  <div class="stage-info">
+                    <div class="stage-name muted-text">EPUB构建</div>
+                    <div class="stage-detail muted-text">等待中</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Overall progress -->
+              <div class="progress-section">
+                <div class="progress-label-row">
+                  <span class="progress-label">总体进度</span>
+                  <span class="progress-pct">65%</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:65%"></div>
+                </div>
+              </div>
+
+              <!-- Live log -->
+              <div class="log-area">
+                <div class="log-line"><span class="log-time">[14:32:01]</span> <span class="log-msg">OCR识别完成，共处理245页</span></div>
+                <div class="log-line"><span class="log-time">[14:32:15]</span> <span class="log-msg">页面分类：正文210页，目录6页，封面2页</span></div>
+                <div class="log-line"><span class="log-time">[14:32:30]</span> <span class="log-msg">后处理：跨页合并完成，装饰元素已去除</span></div>
+                <div class="log-line"><span class="log-time">[14:32:45]</span> <span class="log-msg">正在生成Markdown：第156章...</span></div>
+                <div class="log-line log-current"><span class="log-time">[14:32:52]</span> <span class="log-msg-strong">处理表格数据...</span></div>
+              </div>
+            </article>
+          </div>
+
+          <!-- Recent conversions history -->
+          <article class="card" data-component="card">
+            <div class="card-header">
+              <div>
+                <div class="eyebrow">History</div>
+                <h3>最近转换</h3>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-ghost btn-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                  <span>刷新</span>
+                </button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table history-table">
+                <thead>
+                  <tr>
+                    <th>文件名</th>
+                    <th>状态</th>
+                    <th>时间</th>
+                    <th>页数</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <span class="cell-lead">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                        <span class="truncate">三体.pdf</span>
+                      </span>
+                    </td>
+                    <td><span class="table-pill ready"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>完成</span></td>
+                    <td class="subtle whitespace-nowrap">今天 14:32</td>
+                    <td class="mono">245</td>
+                    <td class="action-cell">
+                      <a href="edit.html" class="table-action" data-dom-id="go-edit">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg>
+                        <span>编辑排版</span>
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="cell-lead">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                        <span class="truncate">百年孤独.pdf</span>
+                      </span>
+                    </td>
+                    <td><span class="table-pill ready"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>完成</span></td>
+                    <td class="subtle whitespace-nowrap">昨天 09:18</td>
+                    <td class="mono">312</td>
+                    <td class="action-cell">
+                      <button class="table-action">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg>
+                        <span>编辑排版</span>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="cell-lead">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                        <span class="truncate">人类简史.pdf</span>
+                      </span>
+                    </td>
+                    <td><span class="table-pill review"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>处理中</span></td>
+                    <td class="subtle whitespace-nowrap">今天 13:45</td>
+                    <td class="mono">389</td>
+                    <td class="action-cell">
+                      <button class="table-action" disabled>
+                        <span>处理中...</span>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="cell-lead">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                        <span class="truncate">思考快与慢.pdf</span>
+                      </span>
+                    </td>
+                    <td><span class="table-pill warn"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>失败</span></td>
+                    <td class="subtle whitespace-nowrap">今天 11:20</td>
+                    <td class="mono">418</td>
+                    <td class="action-cell">
+                      <button class="table-action">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                        <span>重试</span>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <span class="cell-lead">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                        <span class="truncate">枪炮病菌与钢铁.pdf</span>
+                      </span>
+                    </td>
+                    <td><span class="table-pill"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>排队中</span></td>
+                    <td class="subtle whitespace-nowrap">等待中</td>
+                    <td class="mono">498</td>
+                    <td class="action-cell">
+                      <button class="table-action" disabled>
+                        <span>排队中</span>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <style>
+      *{box-sizing:border-box}
+      html,body{margin:0;min-height:100%;background:var(--background);color:var(--foreground);font-family:var(--font-sans);letter-spacing:var(--tracking-normal)}
+      button,input{font:inherit}
+      button{border:0;background:none;color:inherit}
+      a{color:inherit;text-decoration:none}
+      svg{flex:none;display:inline-block;vertical-align:middle;stroke:currentColor;fill:none}
+
+      /* App shell */
+      .app-shell{display:grid;grid-template-columns:minmax(216px,240px) minmax(0,1fr);min-height:100vh;height:100vh;align-items:stretch;background:var(--background);isolation:isolate}
+
+      /* Sidebar */
+      .sidebar{background:var(--sidebar);color:var(--sidebar-foreground);border-right:1px solid var(--sidebar-border);padding:calc(var(--spacing)*2);display:flex;flex-direction:column;gap:calc(var(--spacing)*2.5);font-size:13px;align-self:stretch;height:100%;overflow:auto;overscroll-behavior:contain}
+      .workspace-btn{display:flex;align-items:center;gap:calc(var(--spacing)*1.5);padding:calc(var(--spacing)*1.5) calc(var(--spacing)*2);border:1px solid var(--sidebar-border);border-radius:var(--radius);cursor:pointer;background:transparent}
+      .workspace-btn:hover{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground)}
+      .ws-avatar{width:20px;height:20px;border-radius:999px;background:var(--muted);flex:none}
+      .ws-name{font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+      .ws-chevron{color:var(--muted-foreground)}
+      .cta-btn{display:flex;align-items:center;justify-content:center;gap:calc(var(--spacing)*1.5);padding:calc(var(--spacing)*2) calc(var(--spacing)*2.5);border:1px solid var(--sidebar-border);border-radius:var(--radius);background:var(--sidebar-accent);color:var(--sidebar-accent-foreground);font-weight:500;cursor:pointer}
+      .cta-btn:hover{background:var(--accent);color:var(--accent-foreground)}
+      .nav-list{display:flex;flex-direction:column;gap:1px}
+      .nav-item{width:100%;display:flex;align-items:center;gap:calc(var(--spacing)*2);padding:calc(var(--spacing)*2) calc(var(--spacing)*2.5);border:1px solid transparent;border-radius:var(--radius);cursor:pointer;text-align:left;font-size:13px;color:var(--sidebar-foreground);transition:background-color .15s ease,color .15s ease,border-color .15s ease}
+      .nav-item svg{flex:none;color:var(--muted-foreground)}
+      .nav-item:hover{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground)}
+      .nav-item:hover svg{color:var(--sidebar-accent-foreground)}
+      .nav-item.active{background:var(--sidebar-primary);color:var(--sidebar-primary-foreground)}
+      .nav-item.active svg{color:var(--sidebar-primary-foreground)}
+      .section-head{display:flex;align-items:center;justify-content:space-between;padding:calc(var(--spacing)*1.5) calc(var(--spacing)*2.5);font:500 11px/1 var(--font-sans);letter-spacing:.02em;color:var(--muted-foreground);text-transform:none;cursor:pointer;background:transparent;border:0;width:100%;text-align:left;margin-top:calc(var(--spacing)*1)}
+      .section-head:hover{color:var(--sidebar-accent-foreground)}
+      .section-head svg{flex:none}
+      .recent-list{display:flex;flex-direction:column;gap:1px}
+      .recent-item{display:flex;align-items:center;gap:calc(var(--spacing)*2);padding:calc(var(--spacing)*1.5) calc(var(--spacing)*2.5);border-radius:var(--radius);font-size:12.5px;color:var(--sidebar-foreground);cursor:pointer;border:0;background:transparent;width:100%;text-align:left;transition:background-color .15s ease,color .15s ease}
+      .recent-item:hover{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground)}
+      .recent-dot{flex:none;width:14px;height:14px;border-radius:999px;border:1px dashed var(--muted-foreground);opacity:.5;display:inline-flex;align-items:center;justify-content:center}
+      .recent-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .recent-item.is-more{color:var(--muted-foreground)}
+      .recent-item.is-more .recent-dot{border:0;background:transparent;opacity:1}
+      .nav-meta{margin-top:auto;padding-top:calc(var(--spacing)*2);border-top:1px solid var(--sidebar-border);display:flex;align-items:center;gap:calc(var(--spacing)*2)}
+      .user-pill{display:flex;align-items:center;gap:calc(var(--spacing)*2);padding:calc(var(--spacing)*1.5);flex:1;border-radius:var(--radius);cursor:pointer}
+      .user-pill:hover{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground)}
+      .user-handle{font-size:12.5px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .plan-badge{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:22px;padding:0 calc(var(--spacing)*1.5);border-radius:6px;background:var(--accent);color:var(--accent-foreground);font:600 11px/1 var(--font-mono);border:1px solid var(--sidebar-border)}
+
+      /* Content area */
+      .content{background:var(--background);display:flex;flex-direction:column;height:100%;overflow:auto;overscroll-behavior:contain;min-width:0;min-height:0}
+
+      /* Topbar */
+      .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:calc(var(--spacing)*3);padding:calc(var(--spacing)*3) calc(var(--spacing)*4);border-bottom:1px solid var(--border);background:var(--background)}
+      .search{display:flex;align-items:center;gap:calc(var(--spacing)*2);flex:1 1 320px;max-width:360px;min-width:200px;height:34px;padding:0 calc(var(--spacing)*3);border:1px solid var(--input);border-radius:var(--radius);background:var(--card);color:var(--muted-foreground);font-size:13px}
+      .search input{width:100%;border:0;outline:none;background:transparent;color:var(--foreground);font-size:13px}
+      .toolbar{display:flex;align-items:center;gap:calc(var(--spacing)*2);flex:none;min-width:0;flex-wrap:nowrap}
+      .icon-btn{width:32px;height:32px;border:1px solid var(--border);border-radius:var(--radius);display:grid;place-items:center;cursor:pointer;background:var(--card);color:var(--muted-foreground);transition:background-color .15s ease,color .15s ease,border-color .15s ease}
+      .icon-btn:hover{background:var(--accent);color:var(--accent-foreground)}
+      .user-chip{display:flex;align-items:center;gap:calc(var(--spacing)*2);padding:calc(var(--spacing)*1) calc(var(--spacing)*2) calc(var(--spacing)*1) calc(var(--spacing)*1);border:1px solid var(--border);border-radius:999px;background:var(--card);white-space:nowrap;min-width:0;max-width:220px}
+      .avatar{width:24px;height:24px;border-radius:999px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font:600 11px/1 var(--font-sans);flex:none}
+      .user-chip-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+      .user-name{font-size:12.5px;font-weight:500;line-height:1.2;min-width:0;overflow:hidden;text-overflow:ellipsis}
+      .user-role{font-size:11.5px;line-height:1.2;color:var(--muted-foreground);min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+      /* Screen shell */
+      .screen-shell{flex:1 0 auto;padding:calc(var(--spacing)*4);display:grid;gap:calc(var(--spacing)*4);align-content:start;min-width:0;animation:screenIn .28s ease}
+      .screen-shell>*,.hero>*,.panel-grid>*{min-width:0}
+      @keyframes screenIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+      /* Hero */
+      .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:calc(var(--spacing)*4);flex-wrap:nowrap}
+      .hero>div:first-child{flex:1 1 420px;min-width:0;max-width:680px}
+      .eyebrow{font:500 10.5px/1 var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground)}
+      .hero h1{margin:calc(var(--spacing)*2) 0 0;font:600 clamp(28px,3.5vw,48px)/1.15 var(--font-sans);letter-spacing:-.01em}
+      .hero p{margin:calc(var(--spacing)*1.5) 0 0;color:var(--muted-foreground);max-width:560px;font-size:13px;line-height:1.5}
+
+      /* Buttons */
+      .btn{display:inline-flex;align-items:center;justify-content:center;gap:calc(var(--spacing)*2);height:34px;padding:0 calc(var(--spacing)*3);border:1px solid transparent;border-radius:var(--radius);cursor:pointer;font:500 13px/1 var(--font-sans);white-space:nowrap;transition:background-color .15s ease,color .15s ease,border-color .15s ease}
+      .btn:focus-visible{outline:0;box-shadow:0 0 0 2px var(--background),0 0 0 4px var(--ring)}
+      .btn-primary{background:var(--foreground);color:var(--background);border:1px solid var(--foreground)}
+      .btn-primary:hover{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+      .btn-secondary{background:var(--secondary);color:var(--secondary-foreground);border-color:var(--border)}
+      .btn-secondary:hover{background:var(--accent);color:var(--accent-foreground)}
+      .btn-ghost{background:transparent;color:var(--foreground);border-color:var(--border)}
+      .btn-ghost:hover{background:var(--accent);color:var(--accent-foreground)}
+      .btn-sm{height:28px;padding:0 calc(var(--spacing)*2.5);font-size:12px;gap:calc(var(--spacing)*1)}
+      .btn-large{height:44px;width:100%;font-size:14px;font-weight:600;gap:calc(var(--spacing)*2)}
+      .mt-2{margin-top:8px}
+
+      /* Panel grid */
+      .panel-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,.95fr);gap:calc(var(--spacing)*3);align-items:start}
+
+      /* Card */
+      .card{display:flex;flex-direction:column;gap:calc(var(--spacing)*3);padding:calc(var(--spacing)*3.5);border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--card-foreground);min-width:0;min-height:0;overflow:hidden}
+      .card>*{min-width:0}
+      .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:calc(var(--spacing)*3);min-width:0;flex-wrap:wrap}
+      .card-header>div:first-child{flex:1 1 220px;min-width:0}
+      .card h3{margin:0;font:600 14px/1.3 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .card-actions{display:flex;align-items:center;gap:calc(var(--spacing)*2);flex-wrap:nowrap;min-width:0}
+
+      /* Drop zone */
+      .drop-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--spacing)*2);padding:calc(var(--spacing)*6) calc(var(--spacing)*4);border:2px dashed var(--border);border-radius:var(--radius);text-align:center;transition:border-color .15s ease,background-color .15s ease;cursor:pointer}
+      .drop-zone:hover{border-color:var(--muted-foreground);background:color-mix(in srgb,var(--accent) 30%,transparent)}
+      .drop-icon{color:var(--muted-foreground);margin-bottom:calc(var(--spacing)*1)}
+      .drop-title{font-size:14px;font-weight:500;color:var(--foreground)}
+      .drop-sub{font-size:12px;color:var(--muted-foreground)}
+
+      /* Form fields */
+      .field-row{display:grid;gap:calc(var(--spacing)*1.5)}
+      .field-label{font-size:12px;color:var(--muted-foreground);font-weight:500}
+      .select-shell{height:38px;display:flex;align-items:center;gap:calc(var(--spacing)*2.5);padding:0 calc(var(--spacing)*3);border:1px solid var(--input);border-radius:var(--radius);background:var(--background);font-size:13px;cursor:pointer}
+      .select-shell svg{color:var(--muted-foreground);flex:none}
+      .select-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--foreground)}
+      .select-caret{margin-left:auto}
+      .field-note{color:var(--muted-foreground);font-size:12px}
+      .cover-upload{height:38px;display:flex;align-items:center;gap:calc(var(--spacing)*2);padding:0 calc(var(--spacing)*3);border:1px dashed var(--input);border-radius:var(--radius);background:var(--background);color:var(--muted-foreground);font-size:13px;cursor:pointer}
+      .cover-upload:hover{border-color:var(--muted-foreground);color:var(--foreground)}
+
+      /* Toggle */
+      .toggle-list{display:grid;gap:calc(var(--spacing)*2)}
+      .toggle-input{height:auto;min-height:38px;display:flex;align-items:center;justify-content:space-between;gap:calc(var(--spacing)*3);cursor:pointer;padding:calc(var(--spacing)*2) calc(var(--spacing)*3);border:1px solid var(--input);border-radius:var(--radius);background:var(--background);text-align:left;width:100%;transition:background-color .15s ease,border-color .15s ease}
+      .toggle-input:hover{background:var(--accent);border-color:var(--border)}
+      .toggle-input>div:first-child{display:grid;gap:calc(var(--spacing)*0.5);min-width:0;flex:1}
+      .toggle-input strong{font-weight:500;font-size:13px}
+      .toggle-core{flex:none;width:32px;height:18px;border-radius:999px;background:var(--accent);padding:2px;display:flex;align-items:center;transition:background-color .18s ease}
+      .toggle-core span{width:14px;height:14px;border-radius:999px;background:var(--card);transition:transform .18s ease;display:block}
+      .toggle-input.is-on .toggle-core{background:var(--foreground)}
+      .toggle-input.is-on .toggle-core span{transform:translateX(14px)}
+
+      /* Stage list */
+      .stage-list{display:flex;flex-direction:column;gap:calc(var(--spacing)*1.5)}
+      .stage-item{display:flex;align-items:center;gap:calc(var(--spacing)*2.5);padding:calc(var(--spacing)*1.5) calc(var(--spacing)*2);border-radius:var(--radius);transition:background-color .15s ease}
+      .stage-item.active{background:color-mix(in srgb,var(--accent) 40%,transparent)}
+      .stage-icon{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;flex:none}
+      .stage-icon.success{color:var(--success-strong)}
+      .stage-icon.pending{color:var(--chart-2)}
+      .stage-item:not(.done):not(.active) .stage-icon{color:var(--muted-foreground);opacity:.4}
+      .stage-info{flex:1;min-width:0}
+      .stage-name{font-size:13px;font-weight:500}
+      .stage-detail{font-size:11.5px;color:var(--muted-foreground);margin-top:2px;font-family:var(--font-mono)}
+      .muted-text{color:var(--muted-foreground)!important;opacity:.6}
+
+      /* Progress */
+      .progress-section{display:grid;gap:calc(var(--spacing)*2)}
+      .progress-label-row{display:flex;align-items:center;justify-content:space-between}
+      .progress-label{font-size:12px;font-weight:500;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-mono)}
+      .progress-pct{font-size:13px;font-weight:600;font-family:var(--font-mono)}
+      .progress-track{height:6px;border-radius:3px;background:var(--muted);overflow:hidden}
+      .progress-fill{height:100%;border-radius:3px;background:var(--foreground);transition:width .3s ease}
+
+      /* Log area */
+      .log-area{background:var(--background);border:1px solid var(--border);border-radius:var(--radius);padding:calc(var(--spacing)*3);font-family:var(--font-mono);font-size:11.5px;line-height:1.7;max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+      .log-line{display:flex;gap:calc(var(--spacing)*2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .log-time{color:var(--muted-foreground);flex:none}
+      .log-msg{color:var(--muted-foreground);min-width:0;overflow:hidden;text-overflow:ellipsis}
+      .log-line.log-current .log-msg-strong{color:var(--foreground);font-weight:500}
+
+      /* Table */
+      .table-wrap{min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain}
+      .data-table{width:100%;min-width:620px;border-collapse:collapse;table-layout:fixed}
+      .history-table th:nth-child(1),.history-table td:nth-child(1){width:30%}
+      .history-table th:nth-child(2),.history-table td:nth-child(2){width:14%}
+      .history-table th:nth-child(3),.history-table td:nth-child(3){width:18%}
+      .history-table th:nth-child(4),.history-table td:nth-child(4){width:12%}
+      .history-table th:nth-child(5),.history-table td:nth-child(5){width:26%}
+      .data-table th,.data-table td{padding:calc(var(--spacing)*2.5) calc(var(--spacing)*3);border-bottom:1px solid var(--border);text-align:left;font-size:12.5px;vertical-align:middle}
+      .data-table th{font:500 10.5px/1 var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);background:transparent}
+      .data-table tr:last-child td{border-bottom:0}
+      .data-table tbody tr{transition:background-color .12s ease}
+      .data-table tbody tr:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+      .mono{font-family:var(--font-mono);white-space:nowrap}
+      .subtle{color:var(--muted-foreground);white-space:nowrap}
+      .cell-lead{display:inline-flex;align-items:center;gap:calc(var(--spacing)*2);white-space:nowrap;min-width:0;max-width:100%}
+      .cell-lead svg{color:var(--muted-foreground);flex:none}
+      .cell-lead>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+      .action-cell{width:1%;white-space:nowrap;text-align:right}
+      .table-pill{display:inline-flex;align-items:center;justify-content:center;gap:calc(var(--spacing)*1);padding:2px calc(var(--spacing)*2);font-size:11.5px;background:var(--accent);color:var(--accent-foreground);font-weight:500;border-radius:999px;border:1px solid var(--border);white-space:nowrap}
+      .table-pill svg{flex:none}
+      .table-pill.ready{background:var(--success-subtle);color:var(--success-strong);border-color:transparent}
+      .table-pill.review{background:var(--primary);color:var(--primary-foreground);border-color:transparent}
+      .table-pill.warn{background:color-mix(in srgb,var(--destructive) 12%,var(--background));color:var(--destructive);border-color:transparent}
+      .table-action{padding:0 calc(var(--spacing)*2);height:26px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;font:500 12px/1 var(--font-sans);color:var(--muted-foreground);display:inline-flex;align-items:center;gap:calc(var(--spacing)*1.5);transition:background-color .15s ease,color .15s ease,border-color .15s ease;background:transparent}
+      .table-action:hover{background:var(--accent);color:var(--accent-foreground)}
+      .table-action:disabled{color:var(--muted-foreground);opacity:.5;cursor:not-allowed}
+      .table-action:disabled:hover{background:transparent}
+      .truncate{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;max-width:100%;vertical-align:bottom}
+      .whitespace-nowrap{white-space:nowrap}
+      .focusable:focus-visible{outline:none;box-shadow:0 0 0 2px var(--background),0 0 0 4px var(--ring)}
+
+      /* Compact layout overrides */
+      .app-shell{grid-template-columns:200px minmax(0,1fr)!important}
+      .sidebar{padding:8px 10px!important;gap:4px!important}
+      .workspace{padding:5px 8px!important;gap:6px!important}
+      .cta,.cta-btn{padding:6px 10px!important;font-size:12px!important;background:var(--foreground)!important;color:var(--background)!important;border-color:var(--border)!important}
+      .nav-item{padding:6px 8px!important;gap:8px!important;font-size:12px!important}
+      .nav-meta{padding-top:6px!important}
+      .topbar{padding:8px 16px!important;gap:10px!important}
+      .screen-shell{padding:14px 16px!important;gap:12px!important}
+      .hero{gap:8px!important}
+      .hero h1{font-size:clamp(18px,2vw,24px)!important;margin-top:4px!important}
+      .hero p{margin-top:2px!important;font-size:12px!important}
+      .card{padding:12px 14px!important;gap:8px!important}
+      .card-header{gap:8px!important}
+      .card h3{font-size:13px!important}
+      .metric-value{font-size:22px!important}
+      .metrics-grid{gap:10px!important}
+      .panel-grid{gap:10px!important}
+      .data-table th,.data-table td{padding:6px 10px!important;font-size:12px!important}
+      .upload-zone{padding:20px!important}
+      .option-group{gap:8px!important}
+      .log-line{font-size:11px!important}
+      .icon-btn{width:28px!important;height:28px!important}
+      .progress-step{padding:8px 10px!important;font-size:12px!important}
+
+      /* Responsive */
+      @media (max-width:1080px){
+        .topbar{padding:calc(var(--spacing)*3)}
+        .screen-shell{padding:calc(var(--spacing)*3.5)}
+        .panel-grid{grid-template-columns:1fr}
+      }
+      @media (max-width:900px){
+        .app-shell{width:100%;grid-template-columns:1fr;height:auto;min-height:100vh;overflow:visible}
+        .sidebar{height:auto;max-height:none;border-right:0;border-bottom:1px solid var(--sidebar-border)}
+        .content{height:auto;overflow:visible}
+        .topbar{position:static}
+        .panel-grid{grid-template-columns:1fr}
+        .hero{flex-wrap:wrap}
+        .search{max-width:none}
+      }
+      @media (max-width:640px){
+        .screen-shell{padding:calc(var(--spacing)*3)}
+        .topbar,.hero{flex-direction:column;align-items:stretch}
+        .toolbar{width:100%;justify-content:flex-start;flex-wrap:wrap;gap:calc(var(--spacing)*1.5)}
+        .user-chip{max-width:none}
+        .search{width:100%;min-width:0}
+        .btn{max-width:100%}
+        .data-table{min-width:540px}
+        .card-actions{width:100%}
+      }
+    </style>
+    </body>
+</html>

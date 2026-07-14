@@ -1,0 +1,62 @@
+{
+  "project": {
+    "name": "PDF2BOOK 控制台",
+    "deviceType": "desktop",
+    "responsiveScope": "desktop+tablet+mobile",
+    "themeMode": "dark",
+    "generationTree": {
+      "pages": [
+        {"id": "page-dashboard", "slug": "dashboard", "title": "仪表盘", "file": "pages/dashboard.html", "role": "base"},
+        {"id": "page-convert", "slug": "convert", "title": "PDF转换", "file": "pages/convert.html", "role": "base"},
+        {"id": "page-edit", "slug": "edit", "title": "编辑与排版", "file": "pages/edit.html", "role": "base"},
+        {"id": "page-review", "slug": "review", "title": "AI审查对比", "file": "pages/review.html", "role": "base"},
+        {"id": "page-library", "slug": "library", "title": "书库管理", "file": "pages/library.html", "role": "base"}
+      ]
+    },
+    "styleContinuityAnchors": {
+      "colorSystem": "Vercel monochrome: dark bg #0a0a0a, card #171717, border #282828, foreground #fafafa, primary emphasis near-black in light / #e5e5e5 in dark, blue chart accents #3a81f6-#1f3fad, destructive #ff6467, success #62d178",
+      "shapeSystem": "single 8px radius, no playful rounding; 1px borders for separation; no visible shadows on static surfaces",
+      "typographySystem": "Geist for UI, DM Serif Display for editorial moments, Geist Mono for code/technical text; 4px spacing base; compact dashboard density",
+      "spacingSystem": "4px base unit; screen-shell padding 16px; card padding 14px; tight operational density for developer tool",
+      "componentLanguage": "Vercel dashboard: sidebar nav + topbar + content area; quiet cards with thin borders; primary buttons use tonal inversion; pill toggles; status dots; data tables with dense rows; progress bars; toggle switches",
+      "surfaceAndDepth": "borders and tonal shifts do separation work; shadows nearly silent; floating layers (dropdown/modal) may use subtle elevation only",
+      "imageryAndIconography": "Lucide-style stroke icons; monochrome icons in muted-foreground; blue reserved for chart/data insight moments",
+      "interactionTone": "subtle hover states (accent bg); 150ms transitions; focus rings use ring token; precise, technical tone"
+    }
+  },
+  "designSource": {
+    "operatingMode": "library-bound",
+    "libraryIdentity": {
+      "name": "Vercel",
+      "id": "dl_builtin_vercel",
+      "version": null,
+      "scope": "built-in-global",
+      "path": "c:\\Users\\charl\\.trae-cn\\design_libraries\\dl_builtin_vercel",
+      "versionSource": null
+    },
+    "brandPrefix": "vercel",
+    "cssPath": "c:\\Users\\charl\\.trae-cn\\design_libraries\\dl_builtin_vercel\\colors_and_type.css",
+    "componentCssPath": "c:\\Users\\charl\\.trae-cn\\design_libraries\\dl_builtin_vercel\\components.css",
+    "tokenUnderstandingSource": "c:\\Users\\charl\\.trae-cn\\design_libraries\\dl_builtin_vercel\\css.json",
+    "layoutReference": "c:\\Users\\charl\\.trae-cn\\design_libraries\\dl_builtin_vercel\\ui_kits\\dashboard\\index.html",
+    "iconAssets": {
+      "source": "assets/icons",
+      "projectIconDir": "assets/icons/dl_builtin_vercel",
+      "libraryKey": "dl_builtin_vercel",
+      "renderMethod": "css-mask",
+      "pathTemplate": "../assets/icons/dl_builtin_vercel/{name}.svg",
+      "availableNames": ["arrow-down","arrow-left","arrow-right","arrow-up","box","check","chevron-down","chevron-left","chevron-right","chevron-up","chevrons-down-up","chevrons-up-down","circle-alert","circle-check","circle-minus","circle-pause","circle-play","circle-plus","circle-question-mark","external-link","file","folder-open","folder","funnel","grip","heart","house","mail","map-pin","message-circle-more","mouse-pointer-click","pen-line","send-horizontal","star","tag","thumbs-down","thumbs-up","trash-2","triangle-alert","user"],
+      "totalCount": 39,
+      "coloringRule": "currentColor by default"
+    },
+    "styleConstraints": {
+      "radiusMax": 8,
+      "spacingBase": 4,
+      "staticShadowAlphaMax": 0,
+      "fontBody": 13,
+      "controlHeightDefault": 34
+    },
+    "forbiddenInventedComponents": [],
+    "allowedComponents": ["button", "card", "table", "chart", "navigation", "sidebar"]
+  }
+}

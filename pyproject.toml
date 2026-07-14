@@ -34,9 +34,6 @@ rapid = [
 cloud = [
     "httpx>=0.27",
 ]
-gui = [
-    "gradio>=4.44",
-]
 dev = [
     "pytest>=8",
     "pytest-cov",

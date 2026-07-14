@@ -90,7 +90,7 @@ class BatchProcessor:
         callers/tests. When a reporter is supplied (e.g. ``RichReporter`` from
         the CLI batch command), it drives a book-level progress bar (one tick
         per completed PDF). Subprocess workers always use the default
-        ``NullReporter`` (rich/gradio objects are not picklable across process
+        ``NullReporter`` (rich objects are not picklable across process
         boundaries), so fine-grained per-page progress is only visible in
         single-book runs.
         """

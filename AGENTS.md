@@ -17,7 +17,7 @@ git clone https://github.com/charlesilcn/PDF2BOOK.git
 cd PDF2BOOK
 pip install -e ".[ocr,dev]"          # OCR + dev tools
 pip install -e ".[rapid]"            # lightweight OCR (optional)
-pip install -e ".[gui]"              # Gradio Web UI (optional, not yet stable)
+pip install -e ".[web]"              # FastAPI Web UI (optional)
 ```
 
 ## Quick Start (Zero-Config)
