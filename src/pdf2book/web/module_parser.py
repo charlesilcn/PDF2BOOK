@@ -230,3 +230,69 @@ def parse_modules(md_text: str) -> list[Module]:
         i = j
 
     return modules
+
+
+def serialize_modules(modules: list[Module]) -> str:
+    """Serialize a list of Module objects back to book.md text.
+
+    Reconstructs:
+    - ``::: {.chapter}`` wrappers around H1 sections
+    - ``::: {.class1 .class2}`` wrappers for per-module layout classes
+    - ``::: {.dialogue}`` for dialogue modules
+    - ``::: {.toc-list}`` for TOC modules
+
+    Structural classes (``chapter``) are NEVER emitted as per-module
+    layout — they wrap H1 sections at the top level.
+    """
+    if not modules:
+        return ""
+
+    blocks: list[str] = []
+    in_chapter = False
+
+    for mod in modules:
+        content = mod.content.strip()
+
+        # H1 heading → start a new chapter wrapper
+        if mod.heading_level == 1:
+            # Close previous chapter wrapper
+            if in_chapter:
+                blocks.append(":::")
+            blocks.append("::: {.chapter}")
+            blocks.append(content)
+            in_chapter = True
+            continue
+
+        # Non-H1 module inside a chapter wrapper
+        # Determine wrapper classes
+        wrapper_classes: list[str] = []
+
+        # Preserve dialogue class
+        if mod.type == ModuleType.DIALOGUE and "dialogue" not in mod.layout_classes:
+            wrapper_classes.append("dialogue")
+        # Preserve toc-list class
+        if mod.type == ModuleType.TOC and "toc-list" not in mod.layout_classes:
+            wrapper_classes.append("toc-list")
+
+        # Add user layout classes (exclude structural ones)
+        for cls in mod.layout_classes:
+            if cls not in _STRUCTURAL_CLASSES and cls not in wrapper_classes:
+                wrapper_classes.append(cls)
+
+        if wrapper_classes:
+            class_str = " ".join(f".{c}" for c in wrapper_classes)
+            blocks.append(f"::: {{{class_str}}}")
+            blocks.append(content)
+            blocks.append(":::")
+        else:
+            blocks.append(content)
+
+    # Close final chapter wrapper
+    if in_chapter:
+        blocks.append(":::")
+
+    # Join with double newlines, clean up excessive blank lines
+    result = "\n\n".join(blocks)
+    # Collapse 3+ newlines to 2
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    return result.strip() + "\n"
