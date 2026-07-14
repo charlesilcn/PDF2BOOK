@@ -32,3 +32,28 @@ class SaveBookRequest(BaseModel):
 
     book_md: str
     meta_md: str | None = None
+
+
+class ModuleData(BaseModel):
+    """A single module in the editor."""
+
+    id: str
+    type: str
+    content: str
+    layout_classes: list[str] = []
+    word_count: int = 0
+    heading_level: int | None = None
+    heading_id: str | None = None
+
+
+class ModuleListResponse(BaseModel):
+    """Response for GET /api/books/{stem}/modules."""
+
+    stem: str
+    modules: list[ModuleData]
+
+
+class SaveModulesRequest(BaseModel):
+    """Request for PUT /api/books/{stem}/modules."""
+
+    modules: list[ModuleData]

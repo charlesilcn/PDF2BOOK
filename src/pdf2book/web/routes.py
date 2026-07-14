@@ -8,7 +8,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from pdf2book.config import AppConfig
-from pdf2book.web.models import BookContentResponse, BookInfo, BookListResponse, SaveBookRequest
+from pdf2book.web.models import (
+    BookContentResponse,
+    BookInfo,
+    BookListResponse,
+    ModuleData,
+    ModuleListResponse,
+    SaveBookRequest,
+    SaveModulesRequest,
+)
 
 
 def _cfg(app: FastAPI) -> AppConfig:
@@ -75,3 +83,54 @@ def register_routes(app: FastAPI, ui_dir: Path) -> None:
         if req.meta_md is not None:
             (wd / "meta.md").write_text(req.meta_md, encoding="utf-8")
         return {"status": "ok", "stem": stem}
+
+    # --- API: Module list (parsed from book.md) ---
+    @app.get("/api/books/{stem}/modules")
+    async def get_modules(stem: str) -> ModuleListResponse:
+        from pdf2book.web.module_parser import parse_modules
+
+        wd = _work_dir(app, stem)
+        book_path = wd / "book.md"
+        if not book_path.exists():
+            raise HTTPException(status_code=404, detail="book.md not found")
+        md_text = book_path.read_text(encoding="utf-8")
+        modules = parse_modules(md_text)
+        return ModuleListResponse(
+            stem=stem,
+            modules=[
+                ModuleData(
+                    id=m.id,
+                    type=m.type.value,
+                    content=m.content,
+                    layout_classes=m.layout_classes,
+                    word_count=m.word_count,
+                    heading_level=m.heading_level,
+                    heading_id=m.heading_id,
+                )
+                for m in modules
+            ],
+        )
+
+    # --- API: Save modules (serialize to book.md) ---
+    @app.put("/api/books/{stem}/modules")
+    async def save_modules(stem: str, req: SaveModulesRequest) -> dict:
+        from pdf2book.web.module_parser import Module, ModuleType, serialize_modules
+
+        wd = _work_dir(app, stem)
+        wd.mkdir(parents=True, exist_ok=True)
+
+        modules = [
+            Module(
+                id=m.id,
+                type=ModuleType(m.type),
+                content=m.content,
+                layout_classes=m.layout_classes,
+                word_count=m.word_count,
+                heading_level=m.heading_level,
+                heading_id=m.heading_id,
+            )
+            for m in req.modules
+        ]
+        md_text = serialize_modules(modules)
+        (wd / "book.md").write_text(md_text, encoding="utf-8")
+        return {"status": "ok", "stem": stem, "module_count": len(modules)}
