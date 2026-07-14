@@ -163,5 +163,63 @@ function editPage() {
       };
       return labels[type] || type;
     },
+
+    // Split selected module at cursor position (simplified: split in half)
+    splitModule() {
+      const mod = this.selectedModule;
+      if (!mod || mod.type !== 'paragraph') return;
+      const idx = this.modules.findIndex(m => m.id === mod.id);
+      const content = mod.content.trim();
+      const mid = Math.floor(content.length / 2);
+      // Find nearest sentence break
+      let splitPos = content.indexOf('。', mid);
+      if (splitPos === -1 || splitPos > mid + 50) splitPos = mid;
+      splitPos += 1; // Include the period in the first half
+
+      const firstHalf = content.substring(0, splitPos).trim();
+      const secondHalf = content.substring(splitPos).trim();
+
+      mod.content = firstHalf;
+      const newMod = {
+        id: 'm' + (this.modules.length + 1),
+        type: 'paragraph',
+        content: secondHalf,
+        layout_classes: [...mod.layout_classes],
+        word_count: secondHalf.length,
+        heading_level: null,
+        heading_id: null,
+      };
+      this.modules.splice(idx + 1, 0, newMod);
+      this.selectedId = newMod.id;
+      this.totalWords = this.modules.reduce((sum, m) => sum + m.word_count, 0);
+    },
+
+    // Merge selected module with previous
+    mergeModule() {
+      const mod = this.selectedModule;
+      if (!mod) return;
+      const idx = this.modules.findIndex(m => m.id === mod.id);
+      if (idx === 0) return;
+      const prev = this.modules[idx - 1];
+      if (prev.type !== 'paragraph' && prev.type !== 'dialogue') return;
+
+      prev.content = prev.content.trim() + '\n\n' + mod.content.trim();
+      prev.word_count = prev.content.length;
+      this.modules.splice(idx, 1);
+      this.selectedId = prev.id;
+      this.totalWords = this.modules.reduce((sum, m) => sum + m.word_count, 0);
+    },
+
+    // Delete selected module
+    deleteSelectedModule() {
+      const mod = this.selectedModule;
+      if (!mod) return;
+      const idx = this.modules.findIndex(m => m.id === mod.id);
+      this.modules.splice(idx, 1);
+      this.selectedId = this.modules.length > 0
+        ? this.modules[Math.min(idx, this.modules.length - 1)].id
+        : null;
+      this.totalWords = this.modules.reduce((sum, m) => sum + m.word_count, 0);
+    },
   };
 }

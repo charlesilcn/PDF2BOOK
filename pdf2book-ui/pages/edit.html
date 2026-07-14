@@ -266,33 +266,32 @@ img,video{max-width:100%;height:auto}
           <div class="inspector-header">
             <div class="inspector-title-wrap">
               <span class="inspector-label">属性</span>
-              <span class="inspector-block-type">正文段落</span>
-              <span class="inspector-block-id">#4</span>
+              <span class="inspector-block-type" x-text="selectedModule ? typeLabel(selectedModule.type) : '未选择'"></span>
+              <span class="inspector-block-id" x-text="selectedModule ? '#' + selectedModule.id : ''"></span>
             </div>
-            <button class="icon-btn focusable inspector-collapse" aria-label="收起属性面板" title="收起面板">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg>
-            </button>
           </div>
 
-          <div class="inspector-body">
+          <div class="inspector-body" x-show="selectedModule" style="display:none">
             <!-- Content editor -->
             <div class="inspector-section">
               <label class="inspector-section-label">内容</label>
-              <textarea class="inspector-textarea" rows="8">汪淼觉得，来找他的这四个人是一个奇怪的组合：两名警察和两名军人。如果那两个军人是武警还算正常，但这是两名陆军军官。汪淼第一眼就对来找他的警察没有好感。其实那名穿警服的年轻人还行，举止很有礼貌，但那位便装者让他很不舒服……</textarea>
+              <textarea class="inspector-textarea" rows="8"
+                        x-model="selectedModule.content"
+                        @input="updatePreview()"></textarea>
             </div>
 
             <!-- Typesetting settings -->
             <div class="inspector-section">
               <div class="inspector-section-header">
                 <span class="inspector-section-label">排版设置</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
               </div>
               <div class="inspector-fields">
                 <!-- First line indent -->
                 <div class="inspector-field-row">
                   <span class="field-label">首行缩进</span>
                   <div class="field-control">
-                    <button class="toggle-input is-on focusable" data-toggle="indent">
+                    <button class="toggle-input" :class="{ 'is-on': !hasLayoutClass('no-indent') }"
+                            @click="toggleLayoutClass('no-indent')">
                       <div class="toggle-core"><span></span></div>
                       <span class="toggle-label">2em</span>
                     </button>
@@ -303,9 +302,18 @@ img,video{max-width:100%;height:auto}
                   <span class="field-label">对齐方式</span>
                   <div class="field-control">
                     <div class="pill-group">
-                      <button class="pill-btn active" title="左对齐"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="15" y1="12" y2="12"/><line x1="3" x2="18" y1="18" y2="18"/></svg></button>
-                      <button class="pill-btn" title="两端对齐"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg></button>
-                      <button class="pill-btn" title="居中"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="6" x2="18" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
+                      <button class="pill-btn" :class="{ active: hasLayoutClass('align-left') }"
+                              @click="setAlignment('left')" title="左对齐">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="15" y1="12" y2="12"/><line x1="3" x2="18" y1="18" y2="18"/></svg>
+                      </button>
+                      <button class="pill-btn" :class="{ active: !hasLayoutClass('align-left') && !hasLayoutClass('align-center') }"
+                              @click="setAlignment('justify')" title="两端对齐">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
+                      </button>
+                      <button class="pill-btn" :class="{ active: hasLayoutClass('align-center') }"
+                              @click="setAlignment('center')" title="居中">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6"/><line x1="6" x2="18" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -314,46 +322,12 @@ img,video{max-width:100%;height:auto}
                   <span class="field-label">段间距</span>
                   <div class="field-control">
                     <div class="pill-group">
-                      <button class="pill-btn">0.5em</button>
-                      <button class="pill-btn active">1em</button>
-                      <button class="pill-btn">1.5em</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Text style -->
-            <div class="inspector-section">
-              <div class="inspector-section-header">
-                <span class="inspector-section-label">文字样式</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-              <div class="inspector-fields">
-                <div class="inspector-field-row">
-                  <span class="field-label">字体</span>
-                  <div class="field-control">
-                    <div class="select-shell">
-                      <span>默认宋体</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
-                  </div>
-                </div>
-                <div class="inspector-field-row">
-                  <span class="field-label">字号</span>
-                  <div class="field-control">
-                    <div class="select-shell">
-                      <span>默认</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
-                  </div>
-                </div>
-                <div class="inspector-field-row">
-                  <span class="field-label">样式</span>
-                  <div class="field-control">
-                    <div class="pill-group">
-                      <button class="pill-btn style-toggle active" title="加粗"><b>B</b></button>
-                      <button class="pill-btn style-toggle" title="斜体"><i>I</i></button>
+                      <button class="pill-btn" :class="{ active: hasLayoutClass('spacing-tight') }"
+                              @click="setSpacing('tight')">0.5em</button>
+                      <button class="pill-btn" :class="{ active: !hasLayoutClass('spacing-tight') && !hasLayoutClass('spacing-loose') }"
+                              @click="setSpacing('normal')">1em</button>
+                      <button class="pill-btn" :class="{ active: hasLayoutClass('spacing-loose') }"
+                              @click="setSpacing('loose')">1.5em</button>
                     </div>
                   </div>
                 </div>
@@ -364,22 +338,29 @@ img,video{max-width:100%;height:auto}
             <div class="inspector-section inspector-section-actions">
               <div class="inspector-section-label">操作</div>
               <div class="action-buttons">
-                <button class="btn btn-secondary sm btn-full focusable">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3v6h6"/><path d="M10 21a8 8 0 1 0-7.1-4.1L2 21l4.1-.9A8 8 0 0 0 10 21z"/></svg>
+                <button class="btn btn-secondary sm btn-full" @click="splitModule()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3v6h6"/></svg>
                   拆分段落
                 </button>
-                <button class="btn btn-secondary sm btn-full focusable">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
+                <button class="btn btn-secondary sm btn-full" @click="mergeModule()">
                   合并到上一段
                 </button>
-                <button class="btn btn-ghost sm btn-full danger-btn focusable">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                <button class="btn btn-ghost sm btn-full danger-btn" @click="deleteSelectedModule()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
                   删除模块
                 </button>
               </div>
             </div>
+          </div>
 
-          </div><!-- /.inspector-body -->
+          <!-- Empty state when no module selected -->
+          <div class="inspector-body" x-show="!selectedModule" style="display:none">
+            <div class="inspector-section">
+              <p style="color: var(--muted-foreground); font-size: 13px; text-align: center; padding: 2em 0;">
+                选择一个模块以编辑属性
+              </p>
+            </div>
+          </div>
         </aside>
 
       </div><!-- /.edit-shell -->
