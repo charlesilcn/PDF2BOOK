@@ -114,7 +114,7 @@ img,video{max-width:100%;height:auto}
 </head>
 <body class="min-h-screen font-sans antialiased">
     <main>
-      <div class="edit-shell">
+      <div class="edit-shell" x-data="editPage()" x-init="init()">
         <!-- ============ Panel 1: Left Sidebar ============ -->
         <aside class="sidebar">
           <button class="workspace focusable" aria-label="切换工作区">
@@ -158,301 +158,107 @@ img,video{max-width:100%;height:auto}
           </div>
         </aside>
 
-        <!-- ============ Panel 2: Center - Module Drag Area ============ -->
+        <!-- ============ Panel 2: Center - Split View (Module Canvas + Preview) ============ -->
         <div class="edit-center">
           <!-- Sticky toolbar -->
           <header class="edit-toolbar">
             <div class="edit-toolbar-left">
               <div class="book-title-wrap">
-                <h1 class="book-title">三体（节选）</h1>
-                <span class="book-meta">32 个模块 · 约 12,400 字</span>
+                <h1 class="book-title" x-text="currentBook || '选择书目'"></h1>
+                <span class="book-meta" x-text="modules.length + ' 个模块 · 约 ' + totalWords + ' 字'"></span>
               </div>
             </div>
             <div class="edit-tabs" role="tablist">
-              <button class="edit-tab active" role="tab" aria-selected="true">排版</button>
-              <button class="edit-tab disabled" role="tab" aria-selected="false" disabled>预览</button>
+              <button class="edit-tab" :class="{ active: viewMode === 'edit' }" @click="viewMode = 'edit'" role="tab">排版</button>
+              <button class="edit-tab" :class="{ active: viewMode === 'split' }" @click="viewMode = 'split'" role="tab">分栏</button>
+              <button class="edit-tab" :class="{ active: viewMode === 'preview' }" @click="viewMode = 'preview'" role="tab">预览</button>
             </div>
             <div class="edit-toolbar-right">
-              <div class="add-module-wrap">
-                <button class="btn btn-secondary add-module-btn focusable">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                  <span>添加模块</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                </button>
-              </div>
-              <button class="icon-btn focusable" aria-label="撤销" title="撤销">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6.7 3L3 13"/></svg>
+              <!-- Book selector dropdown -->
+              <select class="select-shell" x-model="currentBook" @change="loadBook($event.target.value)">
+                <option value="">选择书目…</option>
+                <template x-for="book in books" :key="book.stem">
+                  <option :value="book.stem" x-text="book.stem"></option>
+                </template>
+              </select>
+              <button class="btn btn-primary" @click="saveModules()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M15 3v5h5"/></svg>
+                <span>保存</span>
               </button>
-              <button class="icon-btn focusable" aria-label="重做" title="重做">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6.7 3L21 13"/></svg>
-              </button>
-              <a href="review.html" class="btn btn-primary focusable" data-dom-id="go-review">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
-                <span>AI审查</span>
-              </a>
             </div>
           </header>
 
-          <!-- Module list (scrollable) -->
-          <div class="module-canvas">
-
-            <!-- Block #1: Cover -->
-            <div class="module-card module-cover" data-block-id="1">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
-              </div>
-              <div class="module-type-icon" style="color:var(--chart-3)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="module-type-tag">封面</div>
-                <div class="cover-placeholder">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                  <span>cover.jpg</span>
-                </div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">图片</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
-              </div>
-            </div>
-
-            <!-- Block #2: Title page -->
-            <div class="module-card" data-block-id="2">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
-              </div>
-              <div class="module-type-icon" style="color:var(--muted-foreground)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M15 3v5h5"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="module-type-tag">扉页</div>
-                <div class="module-text module-text-title">三体</div>
-                <div class="module-text module-text-sub">刘慈欣 著</div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">扉页</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
-              </div>
-            </div>
-
-            <!-- Insert hint between blocks (Notion-style +) -->
-            <div class="insert-hint" aria-hidden="true">
-              <button class="insert-btn" tabindex="-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-              </button>
-              <div class="insert-line"></div>
-            </div>
-
-            <!-- Block #3: Chapter 1 -->
-            <div class="module-card module-chapter" data-block-id="3">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
-              </div>
-              <div class="module-type-icon" style="color:var(--chart-2)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="module-chapter-title">第一章 科学边界</div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">章节</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
-              </div>
-            </div>
-
-            <!-- Drop indicator between block 3 and 4 -->
-            <div class="drop-indicator" aria-hidden="true">
-              <div class="drop-line"></div>
-            </div>
-
-            <!-- Block #4: Paragraph (SELECTED) -->
-            <div class="module-card module-paragraph selected" data-block-id="4">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
-              </div>
-              <div class="module-type-icon" style="color:var(--muted-foreground)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="module-type-tag">正文段落</div>
-                <div class="module-text module-text-body">汪淼觉得，来找他的这四个人是一个奇怪的组合：两名警察和两名军人。如果那两个军人是武警还算正常，但这是两名陆军军官。汪淼第一眼就对来找他的警察没有好感。其实那名穿警服的年轻人还行，举止很有礼貌，但那位便装者让他很不舒服……</div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">286 字</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn" title="上移"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>
-                <button class="module-action-btn" title="下移"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
-                <button class="module-action-btn" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
-              </div>
-            </div>
-
-            <!-- Block #5: Paragraph (DRAGGING state demo) -->
-            <div class="module-card module-paragraph is-dragging" data-block-id="5">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
-              </div>
-              <div class="module-type-icon" style="color:var(--muted-foreground)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="module-type-tag">正文段落</div>
-                <div class="module-text module-text-body">"科学边界"是一个在国际学术界很有影响的组织，其成员都是著名的学者，以歪曲的方式解释科学，其核心理论是：人类科学已经不可能再向前发展了，所有的科学前沿都已被锁死。</div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">198 字</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
-              </div>
-            </div>
-
-            <!-- Block #6: Image -->
-            <div class="module-card module-image" data-block-id="6">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
-              </div>
-              <div class="module-type-icon" style="color:var(--chart-4)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="module-type-tag">图片</div>
-                <div class="image-preview-row">
-                  <div class="image-thumb">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          <!-- Split view container (viewMode from editPage() on .edit-shell) -->
+          <div class="split-container" style="display:flex; flex:1; overflow:hidden;">
+            <!-- Module canvas (left) — hidden in preview-only mode -->
+            <div class="module-canvas-wrap" x-show="viewMode !== 'preview'">
+              <div class="module-canvas">
+                <template x-for="(mod, idx) in modules" :key="mod.id">
+                  <div class="module-card" :class="{ selected: selectedId === mod.id, ['module-' + mod.type]: true }"
+                       @click="selectModule(mod.id)" :data-block-id="mod.id">
+                    <div class="module-drag-handle" aria-label="拖拽">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+                    </div>
+                    <div class="module-type-icon">
+                      <template x-if="mod.type === 'chapter'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+                      </template>
+                      <template x-if="mod.type === 'paragraph' || mod.type === 'dialogue'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
+                      </template>
+                      <template x-if="mod.type === 'image' || mod.type === 'cover'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                      </template>
+                      <template x-if="mod.type === 'divider'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+                      </template>
+                    </div>
+                    <div class="module-body">
+                      <div class="module-type-tag" x-text="typeLabel(mod.type)"></div>
+                      <template x-if="mod.type === 'chapter'">
+                        <div class="module-chapter-title" x-text="mod.content.replace(/^#+\s*/, '').replace(/\{#.*\}/, '').trim()"></div>
+                      </template>
+                      <template x-if="mod.type === 'paragraph' || mod.type === 'dialogue' || mod.type === 'quote'">
+                        <div class="module-text module-text-body" x-text="mod.content"></div>
+                      </template>
+                      <template x-if="mod.type === 'image' || mod.type === 'cover'">
+                        <div class="image-info">
+                          <div class="image-filename" x-text="mod.content.match(/\((.+?)\)/)?.[1] || 'image'"></div>
+                        </div>
+                      </template>
+                      <template x-if="mod.type === 'divider'">
+                        <div class="divider-visual"><span class="divider-line"></span><span class="divider-label">分节</span><span class="divider-line"></span></div>
+                      </template>
+                    </div>
+                    <div class="module-meta">
+                      <span class="word-count" x-text="mod.word_count > 0 ? mod.word_count + ' 字' : typeLabel(mod.type)"></span>
+                    </div>
+                    <div class="module-actions">
+                      <button class="module-action-btn danger" title="删除" @click.stop="deleteModule(idx)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                      </button>
+                    </div>
                   </div>
-                  <div class="image-info">
-                    <div class="image-filename">page_015.jpg</div>
-                    <div class="image-dims">1240 × 1754 px</div>
+                </template>
+                <template x-if="modules.length === 0">
+                  <div class="empty-drop-zone">
+                    <span>请选择书目加载模块</span>
                   </div>
-                </div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">图片</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+                </template>
               </div>
             </div>
 
-            <!-- Block #7: Paragraph -->
-            <div class="module-card module-paragraph" data-block-id="7">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+            <!-- Preview pane (right) — hidden in edit-only mode -->
+            <div class="preview-pane" x-show="viewMode !== 'edit'">
+              <div class="preview-header">
+                <span class="preview-label">预览</span>
+                <span class="preview-book" x-text="currentBook"></span>
               </div>
-              <div class="module-type-icon" style="color:var(--muted-foreground)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="module-type-tag">正文段落</div>
-                <div class="module-text module-text-body">汪淼打开了那个网站，映入眼帘的是一片深邃的黑色背景，上面只有一行行银色的数字在缓缓流动，仿佛一条没有尽头的河流。倒计时仍在继续，他感到一阵眩晕。</div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">142 字</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+              <div class="preview-scroll">
+                <div class="kindle-preview" x-html="renderedPreview"></div>
               </div>
             </div>
-
-            <!-- Block #8: Divider / Section break -->
-            <div class="module-card module-divider" data-block-id="8">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
-              </div>
-              <div class="module-type-icon" style="color:var(--muted-foreground)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="divider-visual">
-                  <span class="divider-line"></span>
-                  <span class="divider-label">分节</span>
-                  <span class="divider-line"></span>
-                </div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">分隔</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
-              </div>
-            </div>
-
-            <!-- Block #9: Chapter 2 -->
-            <div class="module-card module-chapter" data-block-id="9">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
-              </div>
-              <div class="module-type-icon" style="color:var(--chart-2)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="module-chapter-title">第二章 台球</div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">章节</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
-              </div>
-            </div>
-
-            <!-- Block #10: Quote/Epigraph -->
-            <div class="module-card module-quote" data-block-id="10">
-              <div class="module-drag-handle" aria-label="拖拽">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
-              </div>
-              <div class="module-type-icon" style="color:var(--chart-3)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>
-              </div>
-              <div class="module-body">
-                <div class="module-type-tag">题注/引文</div>
-                <div class="module-quote-text">
-                  <span class="quote-bar"></span>
-                  <span class="quote-content">给时光以生命，给岁月以文明。<br><span class="quote-attribution">—— 出自《三体II：黑暗森林》</span></span>
-                </div>
-              </div>
-              <div class="module-meta">
-                <span class="word-count">引文</span>
-              </div>
-              <div class="module-actions">
-                <button class="module-action-btn" title="编辑"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                <button class="module-action-btn" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-                <button class="module-action-btn danger" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
-              </div>
-            </div>
-
-            <!-- Empty drop zone at bottom -->
-            <div class="empty-drop-zone">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-              <span>拖拽到此处添加新模块</span>
-            </div>
-
-          </div><!-- /.module-canvas -->
+          </div>
         </div><!-- /.edit-center -->
 
         <!-- ============ Panel 3: Right - Properties Inspector ============ -->
@@ -820,6 +626,25 @@ img,video{max-width:100%;height:auto}
       @media (prefers-reduced-motion: reduce){
         *{transition-duration:0.01ms !important;animation-duration:0.01ms !important}
       }
+
+      /* Split view container */
+      .split-container { display: flex; flex: 1; overflow: hidden; }
+      .module-canvas-wrap { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); flex: 1; }
+      .module-canvas-wrap .module-canvas { max-width: none; }
+
+      /* Preview pane */
+      .preview-pane { display: flex; flex-direction: column; overflow: hidden; background: #1a1a1a; flex: 1; }
+      .preview-header { display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-bottom: 1px solid #333; flex: none; }
+      .preview-label { font: 500 10.5px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); }
+      .preview-book { font: 500 13px/1 var(--font-sans); color: var(--foreground); }
+      .preview-scroll { flex: 1; overflow-y: auto; padding: 0; }
     </style>
+
+    <!-- Alpine.js (reactivity, ~15KB) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- marked.js (Markdown renderer, ~20KB) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+    <!-- Edit page logic -->
+    <script src="../assets/js/edit.js"></script>
     </body>
 </html>
