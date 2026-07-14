@@ -303,5 +303,43 @@ def batch(
         raise typer.Exit(code=1)
 
 
+@app.command()
+def web(
+    config: Path | None = typer.Option(None, "--config", help="Config YAML path"),
+    port: int = typer.Option(8000, "--port", help="Port for the Web UI server"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Host to bind the server to"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable DEBUG logging"),
+) -> None:
+    """Launch the FastAPI Web UI (optional extension; requires the 'web' extra).
+
+    Provides a browser-based interface with split-view preview and
+    per-module typesetting controls. Install with:
+
+        pip install 'pdf2book[web]'
+
+    When FastAPI is not installed, prints install instructions and exits.
+    """
+    cfg = _load_config_or_default(config)
+    log = setup_logger("DEBUG" if verbose else "INFO")
+    ensure_standard_dirs(cfg)
+
+    try:
+        import uvicorn
+
+        from pdf2book.web.server import create_app
+    except ImportError as exc:
+        typer.echo(
+            "Web UI 需要安装可选依赖（fastapi + uvicorn）。请运行:\n"
+            "  pip install 'pdf2book[web]'\n"
+            f"原始错误: {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    app = create_app(cfg, log)
+    typer.echo(f"Web UI 启动中 → http://{host}:{port}")
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
 if __name__ == "__main__":
     app()
