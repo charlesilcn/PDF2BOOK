@@ -20,7 +20,6 @@ Adapters:
 from __future__ import annotations
 
 import logging
-import queue
 from typing import Protocol, runtime_checkable
 
 
@@ -109,7 +108,7 @@ class RichReporter:
         self._tasks: dict[str, int] = {}
         self._totals: dict[str, int | None] = {}
 
-    def __enter__(self) -> "RichReporter":
+    def __enter__(self) -> RichReporter:
         self._progress.start()
         return self
 
@@ -173,35 +172,9 @@ class LogReporter:
         self._log.info("%s", message)
 
 
-class GradioReporter:
-    """Web UI adapter: pushes events onto a ``queue.Queue``.
-
-    The Gradio generator loop drains the queue and relays updates to the
-    browser via SSE ``yield``. Event tuples are ``(kind, payload)`` where
-    ``kind`` is one of ``start``/``advance``/``finish``/``log`` and
-    ``payload`` is a dict with the call arguments plus a monotonic stage
-    counter so the UI can compute aggregate progress."""
-
-    def __init__(self, q: "queue.Queue[tuple[str, dict]]") -> None:
-        self._q = q
-
-    def start(self, stage: str, description: str, total: int | None = None) -> None:
-        self._q.put(("start", {"stage": stage, "description": description, "total": total}))
-
-    def advance(self, stage: str, n: int = 1, message: str = "") -> None:
-        self._q.put(("advance", {"stage": stage, "n": n, "message": message}))
-
-    def finish(self, stage: str, message: str = "") -> None:
-        self._q.put(("finish", {"stage": stage, "message": message}))
-
-    def log(self, message: str) -> None:
-        self._q.put(("log", {"message": message}))
-
-
 __all__ = [
     "ProgressReporter",
     "NullReporter",
     "RichReporter",
     "LogReporter",
-    "GradioReporter",
 ]

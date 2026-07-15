@@ -33,16 +33,21 @@ PDF2BOOK/
 └── workspace/   # 中间产物（每本书独立子目录 workspace/{stem}/）
 ```
 
-## 两种使用方式
+## 三种使用方式
 
-两种模式都能让 AI 全面接管校对/排版/元数据工作，用户无需手动 review。
+三种模式都能让 AI 全面接管校对/排版/元数据工作，用户无需手动 review。
 
-| 模式 | 适用场景 | 是否需要 API key | AI 工作由谁做 |
-|---|---|---|---|
-| **CLI 模式** | 命令行批量处理、脚本集成 | 需要（config.yaml） | 外部 LLM（如 GPT-4o-mini） |
-| **Skill 模式** | 在任意 AI agent 中自然语言触发 | 不需要 | Agent 自身推理 |
+**推荐优先级：CLI > Skill > WebUI（可选）。** CLI 与 Skill 是核心路径；WebUI 是非必要的可视化扩展，构建在 CLI 引擎之上。
 
-### CLI 模式
+| 优先级 | 模式 | 适用场景 | 是否需要 API key | AI 工作由谁做 | 安装方式 |
+|---|---|---|---|---|---|
+| **1（推荐）** | **CLI 模式** | 命令行批量、脚本集成、自动化 | 需要（config.yaml） | 外部 LLM（如 GPT-4o-mini） | `pip install -e ".[ocr]"` |
+| **2** | **Skill 模式** | 在任意 AI agent 中自然语言触发 | 不需要 | Agent 自身推理 | 通过 Skill 文件一键安装 |
+| **3（可选）** | **WebUI 模式** | 浏览器可视化预览 + 分模块排版 | 可选 | 外部 LLM 或 agent | `pip install -e ".[ocr,web]"` |
+
+> **说明**：WebUI 是可选扩展模块。核心 CLI（`ocr`/`epub`/`convert`/`batch`）在未安装 `web` extra 的情况下也能完整运行。仅在需要可视化预览和分模块编辑时才安装 WebUI。
+
+### CLI 模式（推荐）
 
 在 `config.yaml` 填入 `api_key` — AI 审查自动启用，无需额外标志：
 
@@ -73,6 +78,24 @@ curl -fsSL https://raw.githubusercontent.com/charlesilcn/PDF2BOOK/main/skills/pd
 - **技能文件**：[`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md)
 - **Agent 入口**：[`AGENTS.md`](AGENTS.md)（通用入口，Claude Code/Cursor/Codex 等自动读取）
 
+### WebUI 模式（可选扩展）
+
+基于 CLI 引擎构建的浏览器界面，提供分屏预览和分模块排版控制，适合偏好可视化编辑的用户。
+
+```bash
+# 1. 安装可选 'web' 依赖
+pip install -e ".[ocr,web]"
+
+# 2. 启动服务器
+pdf2book web                          # http://127.0.0.1:8000
+pdf2book web --port 9000 --host 0.0.0.0   # 自定义 host/port
+```
+
+当未安装 FastAPI 时，`web` 子命令会打印安装提示并优雅退出，核心 CLI 命令完全不受影响。
+
+- **UI 资源**：[`pdf2book-ui/`](pdf2book-ui/)（HTML/CSS/JS，无构建步骤）
+- **后端**：[`src/pdf2book/web/`](src/pdf2book/web/)（FastAPI 路由 + 转换管理器）
+
 ## 安装指南
 
 ### 系统要求
@@ -95,12 +118,13 @@ pip install -e ".[ocr,dev]"
 
 ### 可选依赖
 
-| Extras | 说明 | 安装命令 |
-|---|---|---|
-| `ocr` | PaddleOCR PP-StructureV3（默认 OCR 后端） | `pip install -e ".[ocr]"` |
-| `rapid` | RapidOCR 轻量后端（约 50MB） | `pip install -e ".[rapid]"` |
-| `cloud` | 远程 OCR API 后端 | `pip install -e ".[cloud]"` |
-| `dev` | 测试与代码检查工具 | `pip install -e ".[dev]"` |
+| Extras | 说明 | 用于 | 安装命令 |
+|---|---|---|---|
+| `ocr` | PaddleOCR PP-StructureV3（默认 OCR 后端） | 核心 OCR | `pip install -e ".[ocr]"` |
+| `rapid` | RapidOCR 轻量后端（约 50MB） | 备选 OCR | `pip install -e ".[rapid]"` |
+| `cloud` | 远程 OCR API 后端 | 备选 OCR | `pip install -e ".[cloud]"` |
+| `web` | FastAPI + Uvicorn | **仅 WebUI**（可选） | `pip install -e ".[web]"` |
+| `dev` | 测试与代码检查工具 | 开发 | `pip install -e ".[dev]"` |
 
 ## 核心亮点：AI 是决策者，不是工具调用者
 
@@ -307,8 +331,9 @@ PDF2BOOK/
 ├── config.yaml            # 配置文件（自动加载）
 ├── AGENTS.md              # 通用 AI agent 入口
 ├── skills/pdf2book/SKILL.md  # 可移植 AI Skill 文件
+├── pdf2book-ui/           # 可选 WebUI 资源（HTML/CSS/JS，无构建步骤）
 └── src/pdf2book/
-    ├── cli.py              # Typer CLI 入口
+    ├── cli.py              # Typer CLI 入口（核心）
     ├── __main__.py         # 支持 python -m pdf2book
     ├── pipeline.py         # 两阶段流水线编排
     ├── batch.py            # 批量并行转换
@@ -334,6 +359,12 @@ PDF2BOOK/
     │   ├── metadata.py         # 元数据 YAML 读写
     │   ├── toc_links.py        # 目录链接化
     │   └── templates/kindle.css # Kindle 优化 CSS
+    ├── web/                # 可选 FastAPI WebUI（需安装 '[web]' extra）
+    │   ├── server.py           # App 工厂
+    │   ├── routes.py           # REST API + 页面路由
+    │   ├── convert_manager.py  # Web 触发的转换编排
+    │   ├── module_parser.py    # book.md ↔ 结构化模块
+    │   └── models.py           # API Pydantic 模型
     ├── progress.py         # 进度报告抽象
     ├── pdf/                # PDF 渲染与元数据提取
     └── utils/              # SQLite 缓存、日志、.env 写入
@@ -382,12 +413,18 @@ curl -fsSL https://raw.githubusercontent.com/charlesilcn/PDF2BOOK/main/skills/pd
 
 ### 项目架构
 
-PDF2BOOK 采用模块化设计，核心分层：
+PDF2BOOK 采用模块化设计，严格区分**核心层**与**可选扩展层**：
+
+**核心层**（始终可用，不依赖可选 extras）：
 
 - **OCR 层**（`ocr/`）：可插拔的 OCR 后端，统一 `OCRBackend` 抽象基类
 - **后处理层**（`postprocess/`）：规则化的文本处理，包括页面分类、CIP 提取、置信度过滤
 - **AI 审查层**（`review/`）：可选的 LLM 校对流水线，带约束验证重试循环
 - **EPUB 层**（`epub/`）：Pandoc 驱动的 EPUB 生成，含 Kindle 优化 CSS
+
+**可选扩展层**（需额外安装，缺失时不影响核心 CLI）：
+
+- **WebUI 层**（`web/` + `pdf2book-ui/`）：FastAPI 服务器 + 静态 HTML/CSS/JS，提供浏览器编辑界面。通过 `pdf2book web` 子命令懒加载；缺失 `fastapi`/`uvicorn` 时会优雅退出并打印安装提示，绝不影响 `ocr`/`epub`/`convert`/`batch` 命令。
 
 ## 许可证
 

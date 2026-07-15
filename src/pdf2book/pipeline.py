@@ -37,8 +37,6 @@ import logging
 import re
 from pathlib import Path
 
-from pdf2book.progress import NullReporter, ProgressReporter
-
 from pdf2book.config import AppConfig
 from pdf2book.epub.builder import EpubBuilder, make_epub_builder
 from pdf2book.epub.metadata import (
@@ -49,14 +47,15 @@ from pdf2book.epub.metadata import (
     write_meta_yaml,
 )
 from pdf2book.epub.toc_links import linkify_toc_entries
-from pdf2book.postprocess.decorations import strip_decorations
 from pdf2book.ocr.base import OCRBackend, make_ocr_backend
 from pdf2book.ocr.models import PageResult
 from pdf2book.pdf.extractor import PDFExtractor
 from pdf2book.postprocess.cip_extractor import extract_metadata as extract_cip_meta
+from pdf2book.postprocess.decorations import strip_decorations
 from pdf2book.postprocess.page_classifier import DECORATIVE_TYPES, PageType, classify_pages
 from pdf2book.postprocess.processor import PostProcessor
 from pdf2book.postprocess.structure import infer_title_levels
+from pdf2book.progress import NullReporter, ProgressReporter
 from pdf2book.utils.cache import Cache, cfg_hash, pdf_sha1
 from pdf2book.utils.logger import get_logger
 

@@ -25,11 +25,6 @@ Four subcommands for explicit control:
   ``batch`` — Batch convert a directory of PDFs to EPUBs in parallel.
               Defaults to ``inbox/`` -> ``library/``.
 
-  ``gui`` — Launch the Gradio Web UI (optional extension). Requires the
-            ``gui`` extra: ``pip install 'pdf2book[gui]'``. The Web UI is a
-            pure extension layer; it shares the same pipeline/config as the
-            CLI and adds a visual interface without changing CLI behavior.
-
 AI review auto-enable: when ``config.yaml`` has ``ai_review.api_key`` set
 and ``enabled`` is not explicitly ``false``, AI review turns on automatically.
 Use ``--no-ai-review`` to force it off (e.g. the Skill path, which relies on
@@ -309,57 +304,41 @@ def batch(
 
 
 @app.command()
-def gui(
+def web(
     config: Path | None = typer.Option(None, "--config", help="Config YAML path"),
-    port: int = typer.Option(7860, "--port", help="Port for the Web UI server"),
+    port: int = typer.Option(8000, "--port", help="Port for the Web UI server"),
     host: str = typer.Option("127.0.0.1", "--host", help="Host to bind the server to"),
-    share: bool = typer.Option(
-        False, "--share", help="Create a public Gradio share link (tunnel)"
-    ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable DEBUG logging"),
 ) -> None:
-    """Launch the Gradio Web UI (optional extension; requires the 'gui' extra).
+    """Launch the FastAPI Web UI (optional extension; requires the 'web' extra).
 
-    The Web UI is a pure extension layer over the existing CLI pipeline — it
-    shares the same ``ConversionPipeline`` and ``AppConfig``, only adding a
-    visual interface. Install the GUI dependencies with:
+    Provides a browser-based interface with split-view preview and
+    per-module typesetting controls. Install with:
 
-        pip install 'pdf2book[gui]'   # or: pip install gradio
+        pip install 'pdf2book[web]'
 
-    When Gradio is not installed, this command prints install instructions and
-    exits with code 1 (the CLI and all other subcommands keep working).
+    When FastAPI is not installed, prints install instructions and exits.
     """
     cfg = _load_config_or_default(config)
     log = setup_logger("DEBUG" if verbose else "INFO")
     ensure_standard_dirs(cfg)
 
     try:
-        from pdf2book.ui.app import build_app
+        import uvicorn
 
-        demo = build_app(cfg, log)
+        from pdf2book.web.server import create_app
     except ImportError as exc:
         typer.echo(
-            "Web UI 需要安装可选依赖（gradio）。请运行:\n"
-            "  pip install 'pdf2book[gui]'   # 或 pip install gradio\n"
+            "Web UI 需要安装可选依赖（fastapi + uvicorn）。请运行:\n"
+            "  pip install 'pdf2book[web]'\n"
             f"原始错误: {exc}",
             err=True,
         )
         raise typer.Exit(code=1)
 
-    # Gradio 6.0+ moved theme/css from Blocks constructor to launch().
-    # build_app attaches them as private attrs; pass them here for compat.
-    launch_kwargs: dict = {
-        "server_name": host,
-        "server_port": port,
-        "share": share,
-    }
-    theme = getattr(demo, "_pdf2book_theme", None)
-    css = getattr(demo, "_pdf2book_css", None)
-    if theme is not None:
-        launch_kwargs["theme"] = theme
-    if css is not None:
-        launch_kwargs["css"] = css
-    demo.launch(**launch_kwargs)
+    app = create_app(cfg, log)
+    typer.echo(f"Web UI 启动中 → http://{host}:{port}")
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 if __name__ == "__main__":

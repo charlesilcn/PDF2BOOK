@@ -1,0 +1,166 @@
+/* Kindle preview CSS for browser rendering.
+ * Mirrors epub/templates/kindle.css + utility classes.
+ * Applied inside #preview-pane in edit.html.
+ */
+
+.kindle-preview {
+  line-height: 1.75;
+  margin: 0;
+  padding: 2em 3em;
+  font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+  color: #e0e0e0;
+  background: #1a1a1a;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.kindle-preview p {
+  text-indent: 2em;
+  margin: 0;
+  text-align: justify;
+}
+
+.kindle-preview h1,
+.kindle-preview h2,
+.kindle-preview h3,
+.kindle-preview h4 {
+  text-align: center;
+  font-weight: bold;
+  text-indent: 0;
+}
+
+.kindle-preview h1 {
+  margin-top: 3em;
+  margin-bottom: 2.5em;
+  font-size: 1.5em;
+}
+
+.kindle-preview h2 {
+  margin-top: 2em;
+  margin-bottom: 1.2em;
+  border-left: 4px solid #666;
+  padding-left: 0.8em;
+  text-align: left;
+  font-size: 1.25em;
+}
+
+.kindle-preview h3 {
+  margin-top: 2em;
+  margin-bottom: 1.5em;
+  font-size: 1.15em;
+}
+
+.kindle-preview h1 + p,
+.kindle-preview h2 + p,
+.kindle-preview h3 + p,
+.kindle-preview h4 + p {
+  text-indent: 0;
+}
+
+.kindle-preview p + p {
+  margin-top: 0.3em;
+}
+
+.kindle-preview img {
+  max-width: 100%;
+  max-height: 80vh;
+  height: auto;
+  display: block;
+  margin: 0.5em auto;
+}
+
+.kindle-preview img[src*="pages/"] {
+  max-height: 80vh;
+  height: 80vh;
+  width: auto;
+  object-fit: contain;
+}
+
+.kindle-preview hr {
+  border: none;
+  border-top: 1px solid #555;
+  margin: 2em auto;
+  width: 40%;
+}
+
+.kindle-preview blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 3px solid #888;
+  background-color: #2a2a2a;
+  color: #bbb;
+}
+
+.kindle-preview blockquote p {
+  text-indent: 0;
+}
+
+/* Chapter decorative borders. */
+.kindle-preview .chapter {
+  border-top: 2px solid #555;
+  border-bottom: 1px solid #444;
+  padding: 1.5em 0;
+  margin-top: 2em;
+  margin-bottom: 2em;
+  text-align: center;
+}
+
+.kindle-preview .chapter h1 {
+  margin-top: 0;
+}
+
+/* Dialogue styling. */
+.kindle-preview .dialogue p {
+  margin-left: 1.5em;
+  border-left: 2px solid #666;
+  padding-left: 0.8em;
+  text-indent: 0;
+}
+
+/* TOC list. */
+.kindle-preview .toc-list ul {
+  list-style: none;
+  margin: 0.5em 0;
+  padding-left: 0;
+}
+
+.kindle-preview .toc-list li {
+  margin: 0.3em 0;
+  text-indent: 0;
+  text-align: left;
+}
+
+.kindle-preview .toc-list a {
+  text-decoration: none;
+  color: #7ab;
+}
+
+/* --- Utility classes (per-module typesetting) --- */
+
+.kindle-preview .no-indent p {
+  text-indent: 0;
+}
+
+.kindle-preview .align-left p {
+  text-align: left;
+}
+
+.kindle-preview .align-center p {
+  text-align: center;
+}
+
+.kindle-preview .align-justify p {
+  text-align: justify;
+}
+
+.kindle-preview .spacing-tight p + p {
+  margin-top: 0.2em;
+}
+
+.kindle-preview .spacing-normal p + p {
+  margin-top: 0.5em;
+}
+
+.kindle-preview .spacing-loose p + p {
+  margin-top: 1.2em;
+}
