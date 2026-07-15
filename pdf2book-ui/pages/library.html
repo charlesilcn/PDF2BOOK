@@ -110,9 +110,17 @@ img,video{max-width:100%;height:auto}
         mask-position: center;
         background-color: currentColor;
       }
+      [x-cloak]{display:none!important}
+      .empty-state{text-align:center;padding:48px 16px;color:var(--muted-foreground);font-size:13px;border:1px dashed var(--border);border-radius:var(--radius);background:var(--card)}
+      .empty-state a{color:var(--foreground);text-decoration:underline;text-underline-offset:2px;margin-left:4px}
+      .loading-state{text-align:center;padding:48px 16px;color:var(--muted-foreground);font-size:13px}
     </style>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Library page logic -->
+    <script src="../assets/js/library.js?v=1"></script>
 </head>
-<body class="min-h-screen font-sans antialiased">
+<body class="min-h-screen font-sans antialiased" x-data="libraryPage()" x-init="init()" x-cloak>
     <div class="app-shell">
       <!-- Sidebar -->
       <aside class="sidebar">
@@ -121,28 +129,28 @@ img,video{max-width:100%;height:auto}
           <span class="ws-name">PDF2BOOK</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem;color:var(--muted-foreground)"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
         </button>
-        <button class="cta focusable">
+        <a href="/pages/convert" class="cta focusable">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
           <span>新建转换</span>
-        </button>
+        </a>
         <nav class="nav-list" aria-label="主导航">
-          <a href="dashboard.html" class="nav-item focusable" data-dom-id="nav-dashboard-back">
+          <a href="/pages/dashboard" class="nav-item focusable" data-dom-id="nav-dashboard-back">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
             <span>仪表盘</span>
           </a>
-          <a href="convert.html" class="nav-item focusable">
+          <a href="/pages/convert" class="nav-item focusable">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>
             <span>转换队列</span>
           </a>
-          <a href="review.html" class="nav-item focusable">
+          <a href="/pages/review" class="nav-item focusable">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/></svg>
             <span>AI 审校</span>
           </a>
-          <a href="edit.html" class="nav-item focusable">
+          <a href="/pages/edit" class="nav-item focusable">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             <span>编辑</span>
           </a>
-          <a href="library.html" class="nav-item active focusable" aria-current="page">
+          <a href="/pages/library" class="nav-item active focusable" aria-current="page">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
             <span>书库</span>
           </a>
@@ -213,14 +221,14 @@ img,video{max-width:100%;height:auto}
               <p>管理已转换的电子书，查看元数据，替换封面。</p>
             </div>
             <div class="hero-actions">
-              <button class="btn secondary focusable">
+              <a href="/pages/convert" class="btn secondary focusable">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                 <span>导入 EPUB</span>
-              </button>
-              <button class="btn primary focusable">
+              </a>
+              <a href="/pages/convert" class="btn primary focusable">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
                 <span>新建转换</span>
-              </button>
+              </a>
             </div>
           </div>
 
@@ -236,29 +244,29 @@ img,video{max-width:100%;height:auto}
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
                 </span>
               </div>
-              <div class="metric-value">24</div>
+              <div class="metric-value" x-text="books.length"></div>
               <div class="kpi-delta">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-                <span>+5 本月</span>
+                <span x-text="books.length + ' 本 EPUB'"></span>
               </div>
               <div class="metric-foot">Kindle 兼容格式 EPUB 3</div>
             </article>
             <article class="card compact-metric">
               <div class="card-header">
                 <div>
-                  <div class="eyebrow">本月新增</div>
-                  <h3>新转换</h3>
+                  <div class="eyebrow">可编辑书目</div>
+                  <h3>workspace 书目</h3>
                 </div>
                 <span class="metric-icon">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>
                 </span>
               </div>
-              <div class="metric-value">5</div>
+              <div class="metric-value" x-text="workspaceBooks.length"></div>
               <div class="kpi-delta">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span>2 本待审校</span>
+                <span>含 book.md 可编辑</span>
               </div>
-              <div class="metric-foot">平均转换耗时 3m 42s</div>
+              <div class="metric-foot">来自 workspace 的中间产物</div>
             </article>
             <article class="card compact-metric">
               <div class="card-header">
@@ -270,9 +278,9 @@ img,video{max-width:100%;height:auto}
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg>
                 </span>
               </div>
-              <div class="metric-value">128 <span class="text-base font-normal" style="color:var(--muted-foreground)">MB</span></div>
+              <div class="metric-value" x-text="totalSize"></div>
               <div class="progress-track"><div class="progress-fill" style="width:32%"></div></div>
-              <div class="metric-foot">约占磁盘 12%（共 1 GB）</div>
+              <div class="metric-foot" x-text="'共 ' + books.length + ' 个 EPUB 文件'"></div>
             </article>
           </div>
 
@@ -280,7 +288,10 @@ img,video{max-width:100%;height:auto}
           <div class="toolbar-row">
             <div class="search toolbar-search">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" placeholder="筛选书名或作者..." aria-label="筛选书籍">
+              <input type="text" placeholder="筛选书名或作者..." aria-label="筛选书籍" x-model="searchQuery">
+              <button x-show="searchQuery" @click="searchQuery = ''" class="toolbar-clear focusable" aria-label="清空筛选" type="button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
               <span class="toolbar-shortcut">/</span>
             </div>
             <div class="toolbar-actions">
@@ -288,16 +299,16 @@ img,video{max-width:100%;height:auto}
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M10 20a2 2 0 0 0 2-2v-6l6.6-8.8a1 1 0 0 0-.8-1.6H4.2a1 1 0 0 0-.8 1.6L10 12v6a2 2 0 0 0 2 2z"/></svg>
                 <span>筛选</span>
               </button>
-              <button class="btn ghost sm focusable">
+              <button class="btn ghost sm focusable" @click="refresh()" :disabled="loading">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-                <span>刷新列表</span>
+                <span x-text="loading ? '刷新中...' : '刷新列表'"></span>
               </button>
               <div class="view-switch" role="tablist" aria-label="视图切换">
-                <button class="pill-toggle active focusable" data-view="grid" role="tab" aria-selected="true">
+                <button class="pill-toggle focusable" :class="{ active: viewMode === 'grid' }" data-view="grid" role="tab" :aria-selected="viewMode === 'grid'" @click="viewMode = 'grid'">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
                   <span>网格</span>
                 </button>
-                <button class="pill-toggle focusable" data-view="list" role="tab" aria-selected="false">
+                <button class="pill-toggle focusable" :class="{ active: viewMode === 'list' }" data-view="list" role="tab" :aria-selected="viewMode === 'list'" @click="viewMode = 'list'">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
                   <span>列表</span>
                 </button>
@@ -306,240 +317,66 @@ img,video{max-width:100%;height:auto}
           </div>
 
           <!-- Content Grid: Books + Detail Panel -->
-          <div class="library-layout">
+          <div class="library-layout" x-show="viewMode === 'grid'">
             <!-- Book Grid -->
             <div class="book-grid" id="book-grid-view">
-              <!-- Book 1: 三体 -->
-              <article class="book-card focusable" tabindex="0" data-book="santi">
-                <div class="book-cover cover-1">
-                  <div class="cover-spine"></div>
-                  <div class="cover-content">
-                    <div class="cover-title">三体</div>
-                    <div class="cover-author">刘慈欣</div>
-                  </div>
-                  <div class="cover-shine"></div>
+              <!-- Loading state -->
+              <template x-if="loading">
+                <div class="loading-state" style="grid-column:1/-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.25rem;height:1.25rem;display:inline-block;vertical-align:middle;margin-right:6px;animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  <span>正在加载书库...</span>
                 </div>
-                <div class="book-info">
-                  <div class="book-title truncate">三体</div>
-                  <div class="book-author truncate">刘慈欣</div>
-                  <div class="book-meta">
-                    <span>5.2 MB</span>
-                    <span class="meta-dot"></span>
-                    <span>2026-07-10</span>
-                  </div>
-                </div>
-                <div class="book-actions">
-                  <button class="book-action-btn focusable" aria-label="查看" title="查看">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                  <button class="book-action-btn focusable" aria-label="下载" title="下载">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  </button>
-                </div>
-              </article>
+              </template>
 
-              <!-- Book 2: 百年孤独 -->
-              <article class="book-card focusable" tabindex="0" data-book="bainiangudu">
-                <div class="book-cover cover-2">
-                  <div class="cover-spine"></div>
-                  <div class="cover-content">
-                    <div class="cover-title">百年孤独</div>
-                    <div class="cover-author">马尔克斯</div>
-                  </div>
-                  <div class="cover-shine"></div>
+              <!-- Empty state -->
+              <template x-if="books.length === 0 && !loading">
+                <div class="empty-state" style="grid-column:1/-1">
+                  <div style="font-size:14px;color:var(--foreground);margin-bottom:6px;font-weight:500">还没有 EPUB 文件</div>
+                  <div>去<a href="/pages/convert">转换页面</a>创建第一本电子书</div>
                 </div>
-                <div class="book-info">
-                  <div class="book-title truncate">百年孤独</div>
-                  <div class="book-author truncate">加西亚·马尔克斯</div>
-                  <div class="book-meta">
-                    <span>4.8 MB</span>
-                    <span class="meta-dot"></span>
-                    <span>2026-07-08</span>
-                  </div>
-                </div>
-                <div class="book-actions">
-                  <button class="book-action-btn focusable" aria-label="查看" title="查看">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                  <button class="book-action-btn focusable" aria-label="下载" title="下载">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  </button>
-                </div>
-              </article>
+              </template>
 
-              <!-- Book 3: 活着 -->
-              <article class="book-card focusable" tabindex="0" data-book="huozhe">
-                <div class="book-cover cover-3">
-                  <div class="cover-spine"></div>
-                  <div class="cover-content">
-                    <div class="cover-title">活着</div>
-                    <div class="cover-author">余华</div>
-                  </div>
-                  <div class="cover-shine"></div>
+              <!-- No search results -->
+              <template x-if="books.length > 0 && filteredBooks.length === 0 && !loading">
+                <div class="empty-state" style="grid-column:1/-1">
+                  <div style="font-size:14px;color:var(--foreground);margin-bottom:6px;font-weight:500">未找到匹配的书目</div>
+                  <div>没有书目匹配「<span x-text="searchQuery"></span>」，<a href="#" @click.prevent="searchQuery = ''">清空筛选</a></div>
                 </div>
-                <div class="book-info">
-                  <div class="book-title truncate">活着</div>
-                  <div class="book-author truncate">余华</div>
-                  <div class="book-meta">
-                    <span>2.1 MB</span>
-                    <span class="meta-dot"></span>
-                    <span>2026-07-06</span>
-                  </div>
-                </div>
-                <div class="book-actions">
-                  <button class="book-action-btn focusable" aria-label="查看" title="查看">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                  <button class="book-action-btn focusable" aria-label="下载" title="下载">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  </button>
-                </div>
-              </article>
+              </template>
 
-              <!-- Book 4: 人类简史 -->
-              <article class="book-card focusable" tabindex="0" data-book="renleijianshi">
-                <div class="book-cover cover-4">
-                  <div class="cover-spine"></div>
-                  <div class="cover-content">
-                    <div class="cover-title">人类简史</div>
-                    <div class="cover-author">赫拉利</div>
+              <!-- Book cards -->
+              <template x-for="(book, idx) in filteredBooks" :key="book.stem">
+                <article class="book-card focusable" tabindex="0">
+                  <div class="book-cover" :class="'cover-' + ((idx % 7) + 1)">
+                    <div class="cover-spine"></div>
+                    <div class="cover-content">
+                      <div class="cover-title" x-text="book.stem.substring(0, 6)"></div>
+                    </div>
+                    <div class="cover-shine"></div>
                   </div>
-                  <div class="cover-shine"></div>
-                </div>
-                <div class="book-info">
-                  <div class="book-title truncate">人类简史</div>
-                  <div class="book-author truncate">尤瓦尔·赫拉利</div>
-                  <div class="book-meta">
-                    <span>8.4 MB</span>
-                    <span class="meta-dot"></span>
-                    <span>2026-07-05</span>
+                  <div class="book-info">
+                    <div class="book-title truncate" x-text="book.stem"></div>
+                    <div class="book-meta">
+                      <span x-text="formatSize(book.size_bytes)"></span>
+                      <span class="meta-dot"></span>
+                      <span x-text="formatDate(book.modified_at)"></span>
+                    </div>
                   </div>
-                </div>
-                <div class="book-actions">
-                  <button class="book-action-btn focusable" aria-label="查看" title="查看">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                  <button class="book-action-btn focusable" aria-label="下载" title="下载">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  </button>
-                </div>
-              </article>
-
-              <!-- Book 5: 红楼梦 -->
-              <article class="book-card focusable" tabindex="0" data-book="hongloumeng">
-                <div class="book-cover cover-5">
-                  <div class="cover-spine"></div>
-                  <div class="cover-content">
-                    <div class="cover-title">红楼梦</div>
-                    <div class="cover-author">曹雪芹</div>
+                  <div class="book-actions">
+                    <button class="book-action-btn focusable" aria-label="下载" title="下载" @click="downloadBook(book.stem)" type="button">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    </button>
+                    <template x-if="canEdit(book.stem)">
+                      <a class="book-action-btn focusable" :href="'/pages/edit?book=' + encodeURIComponent(book.stem)" aria-label="编辑" title="编辑排版">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                      </a>
+                    </template>
+                    <button class="book-action-btn focusable" aria-label="删除" title="删除" @click="deleteBook(book.stem)" type="button">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    </button>
                   </div>
-                  <div class="cover-shine"></div>
-                </div>
-                <div class="book-info">
-                  <div class="book-title truncate">红楼梦</div>
-                  <div class="book-author truncate">曹雪芹</div>
-                  <div class="book-meta">
-                    <span>12.6 MB</span>
-                    <span class="meta-dot"></span>
-                    <span>2026-07-03</span>
-                  </div>
-                </div>
-                <div class="book-actions">
-                  <button class="book-action-btn focusable" aria-label="查看" title="查看">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                  <button class="book-action-btn focusable" aria-label="下载" title="下载">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  </button>
-                </div>
-              </article>
-
-              <!-- Book 6: 围城 -->
-              <article class="book-card focusable" tabindex="0" data-book="weicheng">
-                <div class="book-cover cover-6">
-                  <div class="cover-spine"></div>
-                  <div class="cover-content">
-                    <div class="cover-title">围城</div>
-                    <div class="cover-author">钱锺书</div>
-                  </div>
-                  <div class="cover-shine"></div>
-                </div>
-                <div class="book-info">
-                  <div class="book-title truncate">围城</div>
-                  <div class="book-author truncate">钱锺书</div>
-                  <div class="book-meta">
-                    <span>3.3 MB</span>
-                    <span class="meta-dot"></span>
-                    <span>2026-07-01</span>
-                  </div>
-                </div>
-                <div class="book-actions">
-                  <button class="book-action-btn focusable" aria-label="查看" title="查看">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                  <button class="book-action-btn focusable" aria-label="下载" title="下载">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  </button>
-                </div>
-              </article>
-
-              <!-- Book 7: 平凡的世界 -->
-              <article class="book-card focusable" tabindex="0" data-book="pingfan">
-                <div class="book-cover cover-7">
-                  <div class="cover-spine"></div>
-                  <div class="cover-content">
-                    <div class="cover-title">平凡的世界</div>
-                    <div class="cover-author">路遥</div>
-                  </div>
-                  <div class="cover-shine"></div>
-                </div>
-                <div class="book-info">
-                  <div class="book-title truncate">平凡的世界</div>
-                  <div class="book-author truncate">路遥</div>
-                  <div class="book-meta">
-                    <span>9.8 MB</span>
-                    <span class="meta-dot"></span>
-                    <span>2026-06-28</span>
-                  </div>
-                </div>
-                <div class="book-actions">
-                  <button class="book-action-btn focusable" aria-label="查看" title="查看">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                  <button class="book-action-btn focusable" aria-label="下载" title="下载">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  </button>
-                </div>
-              </article>
-
-              <!-- Book 8: 万历十五年 -->
-              <article class="book-card focusable" tabindex="0" data-book="wanli">
-                <div class="book-cover cover-8">
-                  <div class="cover-spine"></div>
-                  <div class="cover-content">
-                    <div class="cover-title">万历十五年</div>
-                    <div class="cover-author">黄仁宇</div>
-                  </div>
-                  <div class="cover-shine"></div>
-                </div>
-                <div class="book-info">
-                  <div class="book-title truncate">万历十五年</div>
-                  <div class="book-author truncate">黄仁宇</div>
-                  <div class="book-meta">
-                    <span>4.1 MB</span>
-                    <span class="meta-dot"></span>
-                    <span>2026-06-25</span>
-                  </div>
-                </div>
-                <div class="book-actions">
-                  <button class="book-action-btn focusable" aria-label="查看" title="查看">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                  <button class="book-action-btn focusable" aria-label="下载" title="下载">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  </button>
-                </div>
-              </article>
+                </article>
+              </template>
             </div>
 
             <!-- Detail Panel -->
@@ -548,38 +385,28 @@ img,video{max-width:100%;height:auto}
                 <div class="card-header">
                   <div>
                     <div class="eyebrow">书籍详情</div>
-                    <h3 class="truncate">三体</h3>
+                    <h3 class="truncate">书库概览</h3>
                   </div>
                   <button class="icon-btn focusable" aria-label="关闭详情">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                   </button>
                 </div>
-                <div class="detail-cover-wrap">
-                  <div class="detail-cover cover-1">
-                    <div class="cover-spine"></div>
-                    <div class="cover-content">
-                      <div class="cover-title">三体</div>
-                      <div class="cover-author">刘慈欣</div>
-                    </div>
-                    <div class="cover-shine"></div>
-                  </div>
-                </div>
                 <div class="detail-info-list">
                   <div class="info-line">
-                    <span class="info-label">书名</span>
-                    <span class="info-value truncate">三体</span>
+                    <span class="info-label">EPUB 总数</span>
+                    <span class="info-value" x-text="books.length + ' 本'"></span>
                   </div>
                   <div class="info-line">
-                    <span class="info-label">作者</span>
-                    <span class="info-value truncate">刘慈欣</span>
+                    <span class="info-label">可编辑</span>
+                    <span class="info-value" x-text="workspaceBooks.length + ' 本'"></span>
                   </div>
                   <div class="info-line">
-                    <span class="info-label">大小</span>
-                    <span class="info-value">5.2 MB</span>
+                    <span class="info-label">总大小</span>
+                    <span class="info-value" x-text="totalSize"></span>
                   </div>
                   <div class="info-line">
-                    <span class="info-label">路径</span>
-                    <span class="info-value truncate" style="font-family:var(--font-mono);font-size:11.5px">library/三体.epub</span>
+                    <span class="info-label">筛选结果</span>
+                    <span class="info-value" x-text="filteredBooks.length + ' 本'"></span>
                   </div>
                   <div class="info-line">
                     <span class="info-label">格式</span>
@@ -587,22 +414,22 @@ img,video{max-width:100%;height:auto}
                   </div>
                   <div class="info-line">
                     <span class="info-label">状态</span>
-                    <span class="info-value"><span class="table-pill ready">已就绪</span></span>
+                    <span class="info-value"><span class="table-pill ready" x-text="loading ? '加载中' : '已就绪'"></span></span>
                   </div>
                 </div>
                 <div class="detail-actions">
-                  <button class="btn primary focusable w-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                    <span>打开阅读</span>
-                  </button>
+                  <a href="/pages/convert" class="btn primary focusable w-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                    <span>新建转换</span>
+                  </a>
                   <div class="detail-actions-row">
-                    <button class="btn secondary focusable flex-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                      <span>下载</span>
+                    <button class="btn secondary focusable flex-1" @click="refresh()" :disabled="loading" type="button">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                      <span>刷新</span>
                     </button>
-                    <button class="btn ghost sm focusable" aria-label="更多操作">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-                    </button>
+                    <a href="/pages/convert" class="btn ghost sm focusable" aria-label="导入 EPUB">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                    </a>
                   </div>
                 </div>
 
@@ -626,8 +453,8 @@ img,video{max-width:100%;height:auto}
             </aside>
           </div>
 
-          <!-- List View (data-table) - hidden by default, toggled by view switch -->
-          <div class="list-view-wrap hidden" id="book-list-view">
+          <!-- List View (data-table) - toggled by view switch via Alpine x-show -->
+          <div class="list-view-wrap" id="book-list-view" x-show="viewMode === 'list'">
             <article class="card">
               <div class="table-wrap">
                 <table class="data-table books-table">
@@ -635,126 +462,52 @@ img,video{max-width:100%;height:auto}
                     <tr>
                       <th style="width:64px">封面</th>
                       <th>书名</th>
-                      <th>作者</th>
-                      <th style="width:80px">大小</th>
+                      <th style="width:90px">大小</th>
                       <th style="width:120px">转换日期</th>
-                      <th style="width:80px">状态</th>
-                      <th style="width:120px">操作</th>
+                      <th style="width:90px">状态</th>
+                      <th style="width:160px">操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td><div class="mini-cover cover-1"></div></td>
-                      <td><span class="cell-lead"><span class="truncate font-medium">三体</span></span></td>
-                      <td class="subtle">刘慈欣</td>
-                      <td class="mono-cell">5.2 MB</td>
-                      <td class="subtle whitespace-nowrap">2026-07-10</td>
-                      <td><span class="table-pill ready">已就绪</span></td>
-                      <td>
-                        <div class="inline-table-actions">
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><span>查看</span></button>
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="mini-cover cover-2"></div></td>
-                      <td><span class="cell-lead"><span class="truncate font-medium">百年孤独</span></span></td>
-                      <td class="subtle">加西亚·马尔克斯</td>
-                      <td class="mono-cell">4.8 MB</td>
-                      <td class="subtle whitespace-nowrap">2026-07-08</td>
-                      <td><span class="table-pill ready">已就绪</span></td>
-                      <td>
-                        <div class="inline-table-actions">
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><span>查看</span></button>
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="mini-cover cover-3"></div></td>
-                      <td><span class="cell-lead"><span class="truncate font-medium">活着</span></span></td>
-                      <td class="subtle">余华</td>
-                      <td class="mono-cell">2.1 MB</td>
-                      <td class="subtle whitespace-nowrap">2026-07-06</td>
-                      <td><span class="table-pill ready">已就绪</span></td>
-                      <td>
-                        <div class="inline-table-actions">
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><span>查看</span></button>
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="mini-cover cover-4"></div></td>
-                      <td><span class="cell-lead"><span class="truncate font-medium">人类简史</span></span></td>
-                      <td class="subtle">尤瓦尔·赫拉利</td>
-                      <td class="mono-cell">8.4 MB</td>
-                      <td class="subtle whitespace-nowrap">2026-07-05</td>
-                      <td><span class="table-pill" style="background:var(--secondary);color:var(--secondary-foreground)">审校中</span></td>
-                      <td>
-                        <div class="inline-table-actions">
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><span>查看</span></button>
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="mini-cover cover-5"></div></td>
-                      <td><span class="cell-lead"><span class="truncate font-medium">红楼梦</span></span></td>
-                      <td class="subtle">曹雪芹</td>
-                      <td class="mono-cell">12.6 MB</td>
-                      <td class="subtle whitespace-nowrap">2026-07-03</td>
-                      <td><span class="table-pill ready">已就绪</span></td>
-                      <td>
-                        <div class="inline-table-actions">
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><span>查看</span></button>
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="mini-cover cover-6"></div></td>
-                      <td><span class="cell-lead"><span class="truncate font-medium">围城</span></span></td>
-                      <td class="subtle">钱锺书</td>
-                      <td class="mono-cell">3.3 MB</td>
-                      <td class="subtle whitespace-nowrap">2026-07-01</td>
-                      <td><span class="table-pill ready">已就绪</span></td>
-                      <td>
-                        <div class="inline-table-actions">
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><span>查看</span></button>
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="mini-cover cover-7"></div></td>
-                      <td><span class="cell-lead"><span class="truncate font-medium">平凡的世界</span></span></td>
-                      <td class="subtle">路遥</td>
-                      <td class="mono-cell">9.8 MB</td>
-                      <td class="subtle whitespace-nowrap">2026-06-28</td>
-                      <td><span class="table-pill ready">已就绪</span></td>
-                      <td>
-                        <div class="inline-table-actions">
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><span>查看</span></button>
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><div class="mini-cover cover-8"></div></td>
-                      <td><span class="cell-lead"><span class="truncate font-medium">万历十五年</span></span></td>
-                      <td class="subtle">黄仁宇</td>
-                      <td class="mono-cell">4.1 MB</td>
-                      <td class="subtle whitespace-nowrap">2026-06-25</td>
-                      <td><span class="table-pill ready">已就绪</span></td>
-                      <td>
-                        <div class="inline-table-actions">
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><span>查看</span></button>
-                          <button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></button>
-                        </div>
-                      </td>
-                    </tr>
+                    <!-- Loading state -->
+                    <template x-if="loading">
+                      <tr><td colspan="6" class="loading-state" style="text-align:center">正在加载书库...</td></tr>
+                    </template>
+                    <!-- Empty state -->
+                    <template x-if="books.length === 0 && !loading">
+                      <tr><td colspan="6" class="empty-state" style="border:0;background:transparent">还没有 EPUB 文件，去<a href="/pages/convert">转换页面</a>创建第一本电子书</td></tr>
+                    </template>
+                    <!-- No search results -->
+                    <template x-if="books.length > 0 && filteredBooks.length === 0 && !loading">
+                      <tr><td colspan="6" class="empty-state" style="border:0;background:transparent">没有书目匹配「<span x-text="searchQuery"></span>」</td></tr>
+                    </template>
+                    <!-- Book rows -->
+                    <template x-for="(book, idx) in filteredBooks" :key="book.stem">
+                      <tr>
+                        <td><div class="mini-cover" :class="'cover-' + ((idx % 7) + 1)"></div></td>
+                        <td><span class="cell-lead"><span class="truncate font-medium" x-text="book.stem"></span></span></td>
+                        <td class="mono-cell" x-text="formatSize(book.size_bytes)"></td>
+                        <td class="subtle whitespace-nowrap" x-text="formatDate(book.modified_at)"></td>
+                        <td><span class="table-pill ready" x-text="canEdit(book.stem) ? '可编辑' : '已就绪'"></span></td>
+                        <td>
+                          <div class="inline-table-actions">
+                            <button class="table-action focusable" @click="downloadBook(book.stem)" title="下载" type="button">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                              <span>下载</span>
+                            </button>
+                            <template x-if="canEdit(book.stem)">
+                              <a class="table-action focusable" :href="'/pages/edit?book=' + encodeURIComponent(book.stem)" title="编辑排版">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                <span>编辑</span>
+                              </a>
+                            </template>
+                            <button class="table-action focusable" @click="deleteBook(book.stem)" title="删除" type="button">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>
@@ -1039,33 +792,10 @@ img,video{max-width:100%;height:auto}
       @media (prefers-reduced-motion: reduce){
         *{transition-duration:0.01ms!important;animation-duration:0.01ms!important}
       }
+      @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+      .toolbar-clear{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;color:var(--muted-foreground);flex:none;border:0;background:transparent;cursor:pointer}
+      .toolbar-clear:hover{background:var(--accent);color:var(--accent-foreground)}
+      [x-cloak]{display:none!important}
     </style>
-    <script>
-      // View toggle logic
-      document.addEventListener('click', function(e){
-        var gridBtn = e.target.closest('[data-view="grid"]');
-        var listBtn = e.target.closest('[data-view="list"]');
-        if(gridBtn || listBtn){
-          var view = gridBtn ? 'grid' : 'list';
-          var switches = document.querySelectorAll('.pill-toggle[data-view]');
-          switches.forEach(function(s){ s.classList.remove('active'); s.setAttribute('aria-selected','false'); });
-          var active = document.querySelector('.pill-toggle[data-view="'+view+'"]');
-          if(active){ active.classList.add('active'); active.setAttribute('aria-selected','true'); }
-          var gridView = document.getElementById('book-grid-view');
-          var listView = document.getElementById('book-list-view');
-          var libLayout = document.querySelector('.library-layout');
-          if(view === 'grid'){
-            if(gridView) gridView.classList.remove('hidden');
-            if(listView) listView.classList.add('hidden');
-            if(libLayout) libLayout.style.display = '';
-          } else {
-            if(gridView) gridView.classList.add('hidden');
-            if(listView) listView.classList.remove('hidden');
-            if(libLayout) libLayout.style.display = 'none';
-          }
-        }
-      });
-
-    </script>
 </body>
 </html>

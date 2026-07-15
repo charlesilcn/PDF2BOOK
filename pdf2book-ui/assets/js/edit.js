@@ -15,6 +15,12 @@ function editPage() {
       await this.loadBooks();
       // Watch for module changes → update preview
       this.$watch('modules', () => this.updatePreview(), { deep: true });
+      // Auto-load book from URL query param (?book=xxx)
+      const params = new URLSearchParams(window.location.search);
+      const bookStem = params.get('book');
+      if (bookStem) {
+        await this.loadBook(bookStem);
+      }
     },
 
     async loadBooks() {
@@ -32,6 +38,7 @@ function editPage() {
       try {
         const resp = await fetch(`/api/books/${encodeURIComponent(stem)}/modules`);
         const data = await resp.json();
+        this.currentBook = stem;
         this.modules = data.modules;
         this.totalWords = this.modules.reduce((sum, m) => sum + m.word_count, 0);
         if (this.modules.length > 0) {
@@ -103,7 +110,19 @@ function editPage() {
     // Render preview from modules
     updatePreview() {
       const md = this.modulesToMarkdown();
-      this.renderedPreview = marked.parse(md);
+      let html = marked.parse(md);
+      // Rewrite relative image URLs to use the workspace file API
+      // book.md references images as "images/p6_e0.png" or "pages/page_0001.png"
+      // (relative paths), but the edit page is at /pages/edit, so the browser
+      // would resolve them against /pages/ → 404. Rewrite to /api/books/{stem}/raw/{path}
+      if (this.currentBook) {
+        const base = `/api/books/${encodeURIComponent(this.currentBook)}/raw/`;
+        html = html.replace(
+          /src="(?!https?:\/\/|\/|data:)([^"]+)"/g,
+          `src="${base}$1"`
+        );
+      }
+      this.renderedPreview = html;
     },
 
     // Convert modules to Markdown for preview rendering

@@ -110,9 +110,125 @@ img,video{max-width:100%;height:auto}
         mask-position: center;
         background-color: currentColor;
       }
+      [x-cloak]{display:none!important}
+      /* 数字滚动动画 */
+      .metric-value {
+        transition: color 0.3s ease;
+      }
+      /* 卡片入场动画 + resize 过渡 */
+      .metrics-grid > .card {
+        animation: cardEnter 0.5s ease backwards;
+        transition: grid-column-start 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                    grid-column-end 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                    grid-row-start 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                    grid-row-end 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                    transform 0.3s ease, opacity 0.3s ease;
+      }
+      .metrics-grid > .card.resizing {
+        animation: resizePulse 0.45s ease;
+      }
+      @keyframes resizePulse {
+        0% { transform: scale(1); }
+        40% { transform: scale(0.94); opacity: 0.7; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .metrics-grid > .card:nth-child(1) { animation-delay: 0.1s; }
+      .metrics-grid > .card:nth-child(2) { animation-delay: 0.2s; }
+      .metrics-grid > .card:nth-child(3) { animation-delay: 0.3s; }
+      /* Resize menu */
+      .resize-menu-wrap { position: relative; }
+      .resize-btn {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px 8px; border: 1px solid var(--border);
+        border-radius: 6px; background: transparent;
+        color: var(--muted-foreground); cursor: pointer;
+        font-size: 11px; font-family: inherit;
+        transition: all 0.15s ease;
+      }
+      .resize-btn:hover { background: var(--muted); color: var(--foreground); }
+      .resize-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+      .resize-menu {
+        position: absolute; top: calc(100% + 4px); right: 0;
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 8px; padding: 4px; z-index: 50;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        min-width: 120px;
+        animation: menuFadeIn 0.15s ease;
+      }
+      @keyframes menuFadeIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .resize-option {
+        display: flex; align-items: center; gap: 8px;
+        padding: 6px 10px; border-radius: 5px;
+        cursor: pointer; font-size: 12px;
+        color: var(--foreground); transition: background 0.1s ease;
+      }
+      .resize-option:hover { background: var(--muted); }
+      .resize-option.active { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font-weight: 600; }
+      .resize-option .size-grid-icon {
+        display: inline-grid; gap: 1px; width: 14px; height: 14px;
+      }
+      .resize-option .size-grid-icon span {
+        background: currentColor; border-radius: 1px; opacity: 0.3;
+      }
+      .resize-option .size-grid-icon span.on { opacity: 1; }
+      @keyframes cardEnter {
+        from { opacity: 0; transform: translateY(16px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      /* 面板入场 */
+      .panel-grid > .card {
+        animation: cardEnter 0.6s ease backwards;
+        animation-delay: 0.4s;
+      }
+      /* 进度条动画 */
+      .progress-fill {
+        background: linear-gradient(90deg, var(--chart-1), var(--chart-2));
+        background-size: 200% 100%;
+        animation: progressShimmer 3s linear infinite;
+      }
+      @keyframes progressShimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      /* 步骤入场 */
+      .list-line {
+        opacity: 0;
+        transform: translateX(-12px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+      }
+      .list-line.step-shown {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      /* 表格行 hover 增强 */
+      .data-table tbody tr {
+        transition: background-color 0.15s ease, transform 0.15s ease;
+      }
+      .data-table tbody tr:hover {
+        transform: translateX(2px);
+      }
+      /* 加载骨架 */
+      .skeleton {
+        background: linear-gradient(90deg, var(--muted) 25%, var(--card) 50%, var(--muted) 75%);
+        background-size: 200% 100%;
+        animation: skeletonPulse 1.5s ease-in-out infinite;
+        border-radius: 4px;
+      }
+      @keyframes skeletonPulse {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
     </style>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Dashboard page logic -->
+    <script src="../assets/js/dashboard.js?v=3"></script>
 </head>
-<body class="min-h-screen font-sans antialiased">
+<body class="min-h-screen font-sans antialiased" x-data="dashboardPage()" x-init="init()" x-cloak>
     <main>
       <div class="app-shell">
         <aside class="sidebar">
@@ -122,31 +238,31 @@ img,video{max-width:100%;height:auto}
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
             <span class="ws-collapse"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></span>
           </button>
-          <button class="cta focusable">
+          <a href="/pages/convert" class="cta focusable">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
             <span>新建转换</span>
-          </button>
+          </a>
           <nav class="nav-list">
             <button class="nav-item active focusable">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
               <span>仪表盘</span>
             </button>
-            <button class="nav-item focusable" data-dom-id="nav-convert">
+            <a href="/pages/convert" class="nav-item focusable" data-dom-id="nav-convert">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></svg>
               <span>转换</span>
-            </button>
-            <button class="nav-item focusable">
+            </a>
+            <a href="/pages/edit" class="nav-item focusable">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
               <span>编辑与排版</span>
-            </button>
-            <button class="nav-item focusable">
+            </a>
+            <a href="/pages/review" class="nav-item focusable">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>
               <span>AI审查</span>
-            </button>
-            <button class="nav-item focusable">
+            </a>
+            <a href="/pages/library" class="nav-item focusable">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
               <span>书库</span>
-            </button>
+            </a>
           </nav>
           <div class="nav-meta">
             <button class="user-pill focusable">
@@ -182,40 +298,85 @@ img,video{max-width:100%;height:auto}
                 <p>OCR识别 + AI智能排版，一键生成适合阅读的电子书。</p>
               </div>
               <div class="hero-actions">
-                <button class="btn btn-primary focusable" data-dom-id="quick-convert">开始转换</button>
-                <button class="btn btn-secondary focusable">查看书库</button>
+                <a href="/pages/convert" class="btn btn-primary focusable" data-dom-id="quick-convert">开始转换</a>
+                <a href="/pages/library" class="btn btn-secondary focusable">查看书库</a>
               </div>
             </div>
             <div class="metrics-grid">
-              <article class="card">
+              <article class="card" :style="cardStyle(0)" :class="{ resizing: resizingCards.includes(0) }">
                 <div class="card-header">
-                  <div><div class="eyebrow">统计</div><h3>已转换</h3></div>
+                  <div><div class="eyebrow">书库</div><h3>书库藏书</h3></div>
+                  <div class="resize-menu-wrap" @click.stop>
+                    <button class="resize-btn" :class="{ active: resizeMenuOpen === 0 }" @click="toggleResizeMenu(0)">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11V5a2 2 0 0 0-2-2h-6"/><path d="M3 13v6a2 2 0 0 0 2 2h6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                      <span x-text="cardSizes[0].w + '×' + cardSizes[0].h"></span>
+                    </button>
+                    <div class="resize-menu" x-show="resizeMenuOpen === 0" x-cloak>
+                      <template x-for="opt in sizeOptions" :key="opt.label">
+                        <div class="resize-option" :class="{ active: isCardSize(0, opt.w, opt.h) }" @click="setCardSize(0, opt.w, opt.h)">
+                          <span class="size-grid-icon" :style="`grid-template-columns:repeat(${opt.w},1fr);grid-template-rows:repeat(${opt.h},1fr)`">
+                            <template x-for="i in (opt.w * opt.h)" :key="i"><span class="on"></span></template>
+                          </span>
+                          <span x-text="opt.label"></span>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
                 </div>
-                <div class="metric-value">12</div>
-                <div class="kpi-delta">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>
-                  <span>本周新增 3 本</span>
-                </div>
-                <div class="progress-track"><div class="progress-fill" style="width:75%; background:var(--success);"></div></div>
-                <div class="metric-foot">累计转换书籍</div>
+                <template x-if="loading"><div class="skeleton" style="width:60px;height:28px"></div></template>
+                <template x-if="!loading"><div class="metric-value" x-text="animatedValues.library"></div></template>
+                <div class="progress-track"><div class="progress-fill" style="width:75%;"></div></div>
+                <div class="metric-foot" x-text="'总大小 ' + formatSize(stats?.library_size_bytes || 0)"></div>
               </article>
-              <article class="card">
+              <article class="card" :style="cardStyle(1)" :class="{ resizing: resizingCards.includes(1) }">
                 <div class="card-header">
-                  <div><div class="eyebrow">指标</div><h3>OCR 成功率</h3></div>
+                  <div><div class="eyebrow">工作区</div><h3>工作区书目</h3></div>
+                  <div class="resize-menu-wrap" @click.stop>
+                    <button class="resize-btn" :class="{ active: resizeMenuOpen === 1 }" @click="toggleResizeMenu(1)">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11V5a2 2 0 0 0-2-2h-6"/><path d="M3 13v6a2 2 0 0 0 2 2h6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                      <span x-text="cardSizes[1].w + '×' + cardSizes[1].h"></span>
+                    </button>
+                    <div class="resize-menu" x-show="resizeMenuOpen === 1" x-cloak>
+                      <template x-for="opt in sizeOptions" :key="opt.label">
+                        <div class="resize-option" :class="{ active: isCardSize(1, opt.w, opt.h) }" @click="setCardSize(1, opt.w, opt.h)">
+                          <span class="size-grid-icon" :style="`grid-template-columns:repeat(${opt.w},1fr);grid-template-rows:repeat(${opt.h},1fr)`">
+                            <template x-for="i in (opt.w * opt.h)" :key="i"><span class="on"></span></template>
+                          </span>
+                          <span x-text="opt.label"></span>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
                 </div>
-                <div class="metric-value">98.7%</div>
-                <div class="metric-sub">近30天平均</div>
-                <div class="progress-track"><div class="progress-fill" style="width:98%;"></div></div>
-                <div class="metric-foot">识别质量稳定</div>
+                <template x-if="loading"><div class="skeleton" style="width:60px;height:28px"></div></template>
+                <template x-if="!loading"><div class="metric-value" x-text="animatedValues.workspace"></div></template>
+                <div class="progress-track"><div class="progress-fill" style="width:60%;"></div></div>
+                <div class="metric-foot">已生成 book.md 的书目</div>
               </article>
-              <article class="card">
+              <article class="card" :style="cardStyle(2)" :class="{ resizing: resizingCards.includes(2) }">
                 <div class="card-header">
-                  <div><div class="eyebrow">队列</div><h3>队列中</h3></div>
+                  <div><div class="eyebrow">待转换</div><h3>待转换 PDF</h3></div>
+                  <div class="resize-menu-wrap" @click.stop>
+                    <button class="resize-btn" :class="{ active: resizeMenuOpen === 2 }" @click="toggleResizeMenu(2)">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11V5a2 2 0 0 0-2-2h-6"/><path d="M3 13v6a2 2 0 0 0 2 2h6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                      <span x-text="cardSizes[2].w + '×' + cardSizes[2].h"></span>
+                    </button>
+                    <div class="resize-menu" x-show="resizeMenuOpen === 2" x-cloak>
+                      <template x-for="opt in sizeOptions" :key="opt.label">
+                        <div class="resize-option" :class="{ active: isCardSize(2, opt.w, opt.h) }" @click="setCardSize(2, opt.w, opt.h)">
+                          <span class="size-grid-icon" :style="`grid-template-columns:repeat(${opt.w},1fr);grid-template-rows:repeat(${opt.h},1fr)`">
+                            <template x-for="i in (opt.w * opt.h)" :key="i"><span class="on"></span></template>
+                          </span>
+                          <span x-text="opt.label"></span>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
                 </div>
-                <div class="metric-value">2</div>
-                <div class="metric-sub">等待处理</div>
-                <div class="progress-track"><div class="progress-fill" style="width:20%; background:var(--chart-2);"></div></div>
-                <div class="metric-foot">预计等待 4 分钟</div>
+                <template x-if="loading"><div class="skeleton" style="width:60px;height:28px"></div></template>
+                <template x-if="!loading"><div class="metric-value" x-text="animatedValues.inbox"></div></template>
+                <div class="progress-track"><div class="progress-fill" style="width:40%; background:var(--chart-2);"></div></div>
+                <div class="metric-foot">inbox/ 中的 PDF 文件</div>
               </article>
             </div>
             <div class="panel-grid">
@@ -232,41 +393,41 @@ img,video{max-width:100%;height:auto}
                 <div class="table-wrap">
                   <table class="data-table">
                     <thead>
-                      <tr><th>书名</th><th>状态</th><th>页数</th><th>大小</th><th></th></tr>
+                      <tr><th>书名</th><th>状态</th><th>元数据</th><th></th></tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td><span class="cell-lead"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg><span class="truncate-text">三体全集</span></span></td>
-                        <td><span class="table-pill ready"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>完成</span></td>
-                        <td class="mono-cell">384</td>
-                        <td class="mono-cell">12.4 MB</td>
-                        <td class="action-cell"><button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>查看</button></td>
-                      </tr>
-                      <tr>
-                        <td><span class="cell-lead"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg><span class="truncate-text">人类简史</span></span></td>
-                        <td><span class="table-pill processing"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>处理中</span></td>
-                        <td class="mono-cell">452</td>
-                        <td class="mono-cell">18.7 MB</td>
-                        <td class="action-cell"><button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>查看</button></td>
-                      </tr>
-                      <tr>
-                        <td><span class="cell-lead"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg><span class="truncate-text">百年孤独</span></span></td>
-                        <td><span class="table-pill queued"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>排队</span></td>
-                        <td class="mono-cell">312</td>
-                        <td class="mono-cell">9.8 MB</td>
-                        <td class="action-cell"><button class="table-action focusable" disabled>等待</button></td>
-                      </tr>
-                      <tr>
-                        <td><span class="cell-lead"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg><span class="truncate-text">红楼梦（古本）</span></span></td>
-                        <td><span class="table-pill failed"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>失败</span></td>
-                        <td class="mono-cell">1248</td>
-                        <td class="mono-cell">56.2 MB</td>
-                        <td class="action-cell"><button class="table-action focusable"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>重试</button></td>
-                      </tr>
+                      <template x-if="loading">
+                        <tr>
+                          <td><div class="skeleton" style="width:80%;height:14px"></div></td>
+                          <td><div class="skeleton" style="width:48px;height:18px"></div></td>
+                          <td><div class="skeleton" style="width:56px;height:14px"></div></td>
+                          <td></td>
+                        </tr>
+                      </template>
+                      <template x-if="recentBooks.length === 0 && !loading">
+                        <tr><td colspan="4" style="text-align:center;color:var(--muted-foreground);padding:24px">还没有转换记录</td></tr>
+                      </template>
+                      <template x-for="book in recentBooks" :key="book.stem">
+                        <tr>
+                          <td><span class="cell-lead"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg><span class="truncate-text" x-text="book.stem"></span></span></td>
+                          <td>
+                            <span class="table-pill ready" x-show="book.has_book_md">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>已就绪
+                            </span>
+                            <span class="table-pill processing" x-show="!book.has_book_md">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>处理中
+                            </span>
+                          </td>
+                          <td class="mono-cell" x-text="book.has_meta_md ? '有元数据' : '无元数据'"></td>
+                          <td class="action-cell">
+                            <a class="table-action focusable" :href="'/pages/edit?book=' + encodeURIComponent(book.stem)">编辑</a>
+                          </td>
+                        </tr>
+                      </template>
                     </tbody>
                   </table>
                 </div>
-                <div class="table-note">共 12 条记录，显示最近 4 条。</div>
+                <div class="table-note" x-text="'共 ' + books.length + ' 条记录，显示最近 ' + recentBooks.length + ' 条。'"></div>
               </article>
               <article class="card">
                 <div class="card-header">
@@ -276,42 +437,42 @@ img,video{max-width:100%;height:auto}
                   </span>
                 </div>
                 <div class="list-stack">
-                  <div class="list-line">
+                  <div class="list-line" x-data="{ shown: false }" x-init="setTimeout(() => shown = true, 200 * $el.dataset.step)" data-step="1" :class="{ 'step-shown': shown }">
                     <div>
                       <div class="list-head"><span class="note-icon is-low"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span><strong>OCR 识别</strong></div>
                       <small>PaddleOCR PP-StructureV3 · 已完成</small>
                     </div>
                     <span class="severity is-low">完成</span>
                   </div>
-                  <div class="list-line">
+                  <div class="list-line" x-data="{ shown: false }" x-init="setTimeout(() => shown = true, 200 * $el.dataset.step)" data-step="2" :class="{ 'step-shown': shown }">
                     <div>
                       <div class="list-head"><span class="note-icon is-low"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span><strong>页面分类</strong></div>
                       <small>目录/正文/封面/版权页识别</small>
                     </div>
                     <span class="severity is-low">完成</span>
                   </div>
-                  <div class="list-line">
+                  <div class="list-line" x-data="{ shown: false }" x-init="setTimeout(() => shown = true, 200 * $el.dataset.step)" data-step="3" :class="{ 'step-shown': shown }">
                     <div>
                       <div class="list-head"><span class="note-icon is-low"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span><strong>后处理</strong></div>
                       <small>跨页合并 · 装饰剥离 · 置信度过滤</small>
                     </div>
                     <span class="severity is-low">完成</span>
                   </div>
-                  <div class="list-line">
+                  <div class="list-line" x-data="{ shown: false }" x-init="setTimeout(() => shown = true, 200 * $el.dataset.step)" data-step="4" :class="{ 'step-shown': shown }">
                     <div>
                       <div class="list-head"><span class="note-icon is-low"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span><strong>Markdown 生成</strong></div>
                       <small>结构化输出 · 相对路径图片引用</small>
                     </div>
                     <span class="severity is-low">完成</span>
                   </div>
-                  <div class="list-line">
+                  <div class="list-line" x-data="{ shown: false }" x-init="setTimeout(() => shown = true, 200 * $el.dataset.step)" data-step="5" :class="{ 'step-shown': shown }">
                     <div>
                       <div class="list-head"><span class="note-icon processing"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><strong>AI 审查</strong></div>
                       <small>智能排版优化 · 章节结构校正</small>
                     </div>
                     <span class="severity is-processing">进行中</span>
                   </div>
-                  <div class="list-line">
+                  <div class="list-line" x-data="{ shown: false }" x-init="setTimeout(() => shown = true, 200 * $el.dataset.step)" data-step="6" :class="{ 'step-shown': shown }">
                     <div>
                       <div class="list-head"><span class="note-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg></span><strong>EPUB 打包</strong></div>
                       <small>Kindle 适配 · 元数据写入 · 输出</small>
@@ -384,7 +545,7 @@ img,video{max-width:100%;height:auto}
       .btn-secondary:hover{background:var(--accent);color:var(--accent-foreground)}
       .btn-ghost{background:transparent;color:var(--foreground);border-color:var(--border)}
       .btn-ghost:hover{background:var(--accent);color:var(--accent-foreground)}
-      .metrics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(var(--spacing)*3);align-items:stretch;grid-auto-rows:1fr}
+      .metrics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(var(--spacing)*3);align-items:stretch;grid-auto-rows:minmax(140px,auto)}
       .panel-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,.95fr);gap:calc(var(--spacing)*3);align-items:stretch}
       .card{display:flex;flex-direction:column;gap:calc(var(--spacing)*3);padding:calc(var(--spacing)*3.5);border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--card-foreground);min-width:0;min-height:0;height:100%;overflow:hidden}
       .card>*{min-width:0}
@@ -485,6 +646,12 @@ img,video{max-width:100%;height:auto}
       @media (prefers-reduced-motion: reduce){
         .screen-shell{animation:none}
         *{transition-duration:0.01ms !important}
+      }
+      /* Override solid progress background to enable shimmer gradient (defined in head) */
+      .progress-fill{
+        background:linear-gradient(90deg, var(--chart-1), var(--chart-2));
+        background-size:200% 100%;
+        animation:progressShimmer 3s linear infinite;
       }
     </style>
     </body>

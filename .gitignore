@@ -64,3 +64,11 @@ Thumbs.db
 
 # Internal session tracking (not for public repo)
 showcase/SessionID.md
+
+# Superpowers SDD planning artifacts (development process, not for public repo)
+.superpowers/
+
+# Development screenshots (not for public repo)
+library-page.png
+*-screenshot.png
+screenshot-*.png
