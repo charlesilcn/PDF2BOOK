@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0a0a">
     <title>仪表盘 - PDF2BOOK</title>
     <link rel="stylesheet" href="../colors_and_type.css">
     <link rel="stylesheet" href="../components.css">
@@ -115,65 +116,13 @@ img,video{max-width:100%;height:auto}
       .metric-value {
         transition: color 0.3s ease;
       }
-      /* 卡片入场动画 + resize 过渡 */
+      /* 卡片入场动画 */
       .metrics-grid > .card {
         animation: cardEnter 0.5s ease backwards;
-        transition: grid-column-start 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-                    grid-column-end 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-                    grid-row-start 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-                    grid-row-end 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-                    transform 0.3s ease, opacity 0.3s ease;
-      }
-      .metrics-grid > .card.resizing {
-        animation: resizePulse 0.45s ease;
-      }
-      @keyframes resizePulse {
-        0% { transform: scale(1); }
-        40% { transform: scale(0.94); opacity: 0.7; }
-        100% { transform: scale(1); opacity: 1; }
       }
       .metrics-grid > .card:nth-child(1) { animation-delay: 0.1s; }
       .metrics-grid > .card:nth-child(2) { animation-delay: 0.2s; }
       .metrics-grid > .card:nth-child(3) { animation-delay: 0.3s; }
-      /* Resize menu */
-      .resize-menu-wrap { position: relative; }
-      .resize-btn {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 4px 8px; border: 1px solid var(--border);
-        border-radius: 6px; background: transparent;
-        color: var(--muted-foreground); cursor: pointer;
-        font-size: 11px; font-family: inherit;
-        transition: all 0.15s ease;
-      }
-      .resize-btn:hover { background: var(--muted); color: var(--foreground); }
-      .resize-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
-      .resize-menu {
-        position: absolute; top: calc(100% + 4px); right: 0;
-        background: var(--card); border: 1px solid var(--border);
-        border-radius: 8px; padding: 4px; z-index: 50;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        min-width: 120px;
-        animation: menuFadeIn 0.15s ease;
-      }
-      @keyframes menuFadeIn {
-        from { opacity: 0; transform: translateY(-4px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .resize-option {
-        display: flex; align-items: center; gap: 8px;
-        padding: 6px 10px; border-radius: 5px;
-        cursor: pointer; font-size: 12px;
-        color: var(--foreground); transition: background 0.1s ease;
-      }
-      .resize-option:hover { background: var(--muted); }
-      .resize-option.active { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font-weight: 600; }
-      .resize-option .size-grid-icon {
-        display: inline-grid; gap: 1px; width: 14px; height: 14px;
-      }
-      .resize-option .size-grid-icon span {
-        background: currentColor; border-radius: 1px; opacity: 0.3;
-      }
-      .resize-option .size-grid-icon span.on { opacity: 1; }
       @keyframes cardEnter {
         from { opacity: 0; transform: translateY(16px) scale(0.98); }
         to { opacity: 1; transform: translateY(0) scale(1); }
@@ -226,7 +175,7 @@ img,video{max-width:100%;height:auto}
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- Dashboard page logic -->
-    <script src="../assets/js/dashboard.js?v=3"></script>
+    <script src="../assets/js/dashboard.js?v=4"></script>
 </head>
 <body class="min-h-screen font-sans antialiased" x-data="dashboardPage()" x-init="init()" x-cloak>
     <main>
@@ -275,7 +224,7 @@ img,video{max-width:100%;height:auto}
           <header class="topbar">
             <div class="search">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
-              <input aria-label="搜索" placeholder="搜索书籍、任务..." />
+              <input aria-label="搜索" placeholder="搜索书籍、任务…" />
             </div>
             <div class="toolbar">
               <button class="icon-btn focusable" aria-label="通知">
@@ -303,75 +252,27 @@ img,video{max-width:100%;height:auto}
               </div>
             </div>
             <div class="metrics-grid">
-              <article class="card" :style="cardStyle(0)" :class="{ resizing: resizingCards.includes(0) }">
+              <article class="card">
                 <div class="card-header">
                   <div><div class="eyebrow">书库</div><h3>书库藏书</h3></div>
-                  <div class="resize-menu-wrap" @click.stop>
-                    <button class="resize-btn" :class="{ active: resizeMenuOpen === 0 }" @click="toggleResizeMenu(0)">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11V5a2 2 0 0 0-2-2h-6"/><path d="M3 13v6a2 2 0 0 0 2 2h6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
-                      <span x-text="cardSizes[0].w + '×' + cardSizes[0].h"></span>
-                    </button>
-                    <div class="resize-menu" x-show="resizeMenuOpen === 0" x-cloak>
-                      <template x-for="opt in sizeOptions" :key="opt.label">
-                        <div class="resize-option" :class="{ active: isCardSize(0, opt.w, opt.h) }" @click="setCardSize(0, opt.w, opt.h)">
-                          <span class="size-grid-icon" :style="`grid-template-columns:repeat(${opt.w},1fr);grid-template-rows:repeat(${opt.h},1fr)`">
-                            <template x-for="i in (opt.w * opt.h)" :key="i"><span class="on"></span></template>
-                          </span>
-                          <span x-text="opt.label"></span>
-                        </div>
-                      </template>
-                    </div>
-                  </div>
                 </div>
                 <template x-if="loading"><div class="skeleton" style="width:60px;height:28px"></div></template>
                 <template x-if="!loading"><div class="metric-value" x-text="animatedValues.library"></div></template>
                 <div class="progress-track"><div class="progress-fill" style="width:75%;"></div></div>
                 <div class="metric-foot" x-text="'总大小 ' + formatSize(stats?.library_size_bytes || 0)"></div>
               </article>
-              <article class="card" :style="cardStyle(1)" :class="{ resizing: resizingCards.includes(1) }">
+              <article class="card">
                 <div class="card-header">
                   <div><div class="eyebrow">工作区</div><h3>工作区书目</h3></div>
-                  <div class="resize-menu-wrap" @click.stop>
-                    <button class="resize-btn" :class="{ active: resizeMenuOpen === 1 }" @click="toggleResizeMenu(1)">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11V5a2 2 0 0 0-2-2h-6"/><path d="M3 13v6a2 2 0 0 0 2 2h6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
-                      <span x-text="cardSizes[1].w + '×' + cardSizes[1].h"></span>
-                    </button>
-                    <div class="resize-menu" x-show="resizeMenuOpen === 1" x-cloak>
-                      <template x-for="opt in sizeOptions" :key="opt.label">
-                        <div class="resize-option" :class="{ active: isCardSize(1, opt.w, opt.h) }" @click="setCardSize(1, opt.w, opt.h)">
-                          <span class="size-grid-icon" :style="`grid-template-columns:repeat(${opt.w},1fr);grid-template-rows:repeat(${opt.h},1fr)`">
-                            <template x-for="i in (opt.w * opt.h)" :key="i"><span class="on"></span></template>
-                          </span>
-                          <span x-text="opt.label"></span>
-                        </div>
-                      </template>
-                    </div>
-                  </div>
                 </div>
                 <template x-if="loading"><div class="skeleton" style="width:60px;height:28px"></div></template>
                 <template x-if="!loading"><div class="metric-value" x-text="animatedValues.workspace"></div></template>
                 <div class="progress-track"><div class="progress-fill" style="width:60%;"></div></div>
                 <div class="metric-foot">已生成 book.md 的书目</div>
               </article>
-              <article class="card" :style="cardStyle(2)" :class="{ resizing: resizingCards.includes(2) }">
+              <article class="card">
                 <div class="card-header">
                   <div><div class="eyebrow">待转换</div><h3>待转换 PDF</h3></div>
-                  <div class="resize-menu-wrap" @click.stop>
-                    <button class="resize-btn" :class="{ active: resizeMenuOpen === 2 }" @click="toggleResizeMenu(2)">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11V5a2 2 0 0 0-2-2h-6"/><path d="M3 13v6a2 2 0 0 0 2 2h6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
-                      <span x-text="cardSizes[2].w + '×' + cardSizes[2].h"></span>
-                    </button>
-                    <div class="resize-menu" x-show="resizeMenuOpen === 2" x-cloak>
-                      <template x-for="opt in sizeOptions" :key="opt.label">
-                        <div class="resize-option" :class="{ active: isCardSize(2, opt.w, opt.h) }" @click="setCardSize(2, opt.w, opt.h)">
-                          <span class="size-grid-icon" :style="`grid-template-columns:repeat(${opt.w},1fr);grid-template-rows:repeat(${opt.h},1fr)`">
-                            <template x-for="i in (opt.w * opt.h)" :key="i"><span class="on"></span></template>
-                          </span>
-                          <span x-text="opt.label"></span>
-                        </div>
-                      </template>
-                    </div>
-                  </div>
                 </div>
                 <template x-if="loading"><div class="skeleton" style="width:60px;height:28px"></div></template>
                 <template x-if="!loading"><div class="metric-value" x-text="animatedValues.inbox"></div></template>
@@ -493,20 +394,20 @@ img,video{max-width:100%;height:auto}
       button{border:0;background:none;color:inherit;cursor:pointer}
       input{border:0;outline:none;background:transparent}
       svg{flex:none;display:inline-block;vertical-align:middle}
-      .app-shell{display:grid;grid-template-columns:minmax(216px,240px) minmax(0,1fr);min-height:100vh;height:100vh;align-items:stretch;background:var(--background);isolation:isolate}
+      .app-shell{display:grid;grid-template-columns:200px minmax(0,1fr);min-height:100vh;height:100vh;align-items:stretch;background:var(--background);isolation:isolate}
       .sidebar,.content{min-width:0;min-height:0}
-      .sidebar{background:var(--sidebar);color:var(--sidebar-foreground);border-right:1px solid var(--sidebar-border);padding:calc(var(--spacing)*2);display:flex;flex-direction:column;gap:calc(var(--spacing)*2);font-size:13px;align-self:stretch;height:100%;overflow:auto;overscroll-behavior:contain}
+      .sidebar{background:var(--sidebar);color:var(--sidebar-foreground);border-right:1px solid var(--sidebar-border);padding:8px 10px;display:flex;flex-direction:column;gap:4px;font-size:12px;align-self:stretch;height:100%;overflow:auto;overscroll-behavior:contain}
       .content{background:var(--background);display:flex;flex-direction:column;height:100%;overflow:auto;overscroll-behavior:contain}
-      .workspace{display:flex;align-items:center;gap:calc(var(--spacing)*1.5);padding:calc(var(--spacing)*1.5) calc(var(--spacing)*2);border:1px solid var(--sidebar-border);border-radius:var(--radius);cursor:pointer;background:transparent;width:100%}
+      .workspace{display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid var(--sidebar-border);border-radius:var(--radius);cursor:pointer;background:transparent;width:100%}
       .workspace:hover{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground)}
       .ws-avatar{width:18px;height:18px;border-radius:999px;background:var(--muted);flex:none}
       .ws-name{font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
       .ws-collapse{margin-left:calc(var(--spacing)*1);padding-left:calc(var(--spacing)*1.5);border-left:1px solid var(--sidebar-border);display:inline-flex;align-items:center;color:var(--muted-foreground)}
-      .cta{display:flex;align-items:center;justify-content:center;gap:calc(var(--spacing)*1.5);padding:calc(var(--spacing)*2) calc(var(--spacing)*2.5);border:1px solid var(--sidebar-border);border-radius:var(--radius);background:var(--sidebar-primary);color:var(--sidebar-primary-foreground);font-weight:500;cursor:pointer;width:100%;transition:background-color .15s ease,color .15s ease,border-color .15s ease}
-      .cta:hover{background:var(--foreground);color:var(--background)}
+      .cta{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 10px;border:1px solid var(--sidebar-border);border-radius:var(--radius);background:var(--foreground);color:var(--background);font-weight:500;cursor:pointer;width:100%;transition:background-color .15s ease,color .15s ease,border-color .15s ease;font-size:12px}
+      .cta:hover{background:var(--primary);color:var(--primary-foreground)}
       .nav-list{display:flex;flex-direction:column;gap:1px}
       .nav-item,.icon-btn,.btn,.table-action,.workspace,.cta{transition:background-color .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease}
-      .nav-item{width:100%;display:flex;align-items:center;gap:calc(var(--spacing)*2);padding:calc(var(--spacing)*2) calc(var(--spacing)*2.5);border:1px solid transparent;border-radius:var(--radius);cursor:pointer;text-align:left;font-size:13px;color:var(--sidebar-foreground)}
+      .nav-item{width:100%;display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid transparent;border-radius:var(--radius);cursor:pointer;text-align:left;font-size:12px;color:var(--sidebar-foreground)}
       .nav-item svg{color:var(--muted-foreground)}
       .nav-item:hover{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground)}
       .nav-item:hover svg{color:var(--sidebar-accent-foreground)}
@@ -517,51 +418,51 @@ img,video{max-width:100%;height:auto}
       .user-pill:hover{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground)}
       .user-pill .ws-avatar{width:22px;height:22px}
       .user-handle{font-size:12.5px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:calc(var(--spacing)*3);padding:calc(var(--spacing)*3) calc(var(--spacing)*4);border-bottom:1px solid var(--border);background:var(--background)}
-      .search{display:flex;align-items:center;gap:calc(var(--spacing)*2);flex:1 1 320px;max-width:360px;min-width:200px;height:34px;padding:0 calc(var(--spacing)*3);border:1px solid var(--input);border-radius:var(--radius);background:var(--card);color:var(--muted-foreground);font-size:13px}
-      .search input{width:100%;color:var(--foreground);font-size:13px}
+      .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--background)}
+      .search{display:flex;align-items:center;gap:6px;flex:1 1 320px;max-width:360px;min-width:200px;height:32px;padding:0 8px;border:1px solid var(--input);border-radius:var(--radius);background:var(--card);color:var(--muted-foreground);font-size:12px}
+      .search input{width:100%;color:var(--foreground);font-size:12px}
       .search input::placeholder{color:var(--muted-foreground)}
-      .toolbar{display:flex;align-items:center;gap:calc(var(--spacing)*2);flex:none;min-width:0;flex-wrap:nowrap}
-      .icon-btn{width:32px;height:32px;border:1px solid var(--border);border-radius:var(--radius);display:grid;place-items:center;cursor:pointer;background:var(--card);color:var(--muted-foreground)}
+      .toolbar{display:flex;align-items:center;gap:6px;flex:none;min-width:0;flex-wrap:nowrap}
+      .icon-btn{width:28px;height:28px;border:1px solid var(--border);border-radius:var(--radius);display:grid;place-items:center;cursor:pointer;background:var(--card);color:var(--muted-foreground)}
       .icon-btn:hover{background:var(--accent);color:var(--accent-foreground)}
       .user-chip{display:flex;align-items:center;gap:calc(var(--spacing)*2);padding:calc(var(--spacing)*1) calc(var(--spacing)*2) calc(var(--spacing)*1) calc(var(--spacing)*1);border:1px solid var(--border);border-radius:999px;background:var(--card);white-space:nowrap;min-width:0;max-width:220px}
       .avatar{width:24px;height:24px;border-radius:999px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font:600 11px/1 var(--font-sans);flex:none}
       .user-chip-text{display:flex;flex-direction:column;gap:1px;min-width:0}
       .user-name{font-size:12.5px;font-weight:500;line-height:1.2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .screen-shell{flex:1 0 auto;padding:calc(var(--spacing)*4);display:grid;gap:calc(var(--spacing)*4);align-content:start;min-width:0;animation:screenIn .28s ease}
+      .screen-shell{flex:1 0 auto;padding:12px 16px;display:grid;gap:8px;align-content:start;min-width:0;animation:screenIn .28s ease}
       .screen-shell>*,.hero>*,.metrics-grid>*,.panel-grid>*{min-width:0}
-      .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:calc(var(--spacing)*4);flex-wrap:nowrap}
+      .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:nowrap;margin-bottom:4px}
       .hero>div:first-child{flex:1 1 420px;min-width:0;max-width:680px}
       .eyebrow{font:500 10.5px/1 var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground)}
-      .hero h1{margin:calc(var(--spacing)*2) 0 0;font:600 clamp(22px,2.8vw,32px)/1.15 var(--font-sans);letter-spacing:-.01em}
-      .hero p{margin:calc(var(--spacing)*1.5) 0 0;color:var(--muted-foreground);max-width:560px;font-size:13px;line-height:1.5}
-      .hero-actions,.card-actions{display:flex;align-items:center;gap:calc(var(--spacing)*2);flex-wrap:nowrap;min-width:0;max-width:100%;margin-left:auto;justify-content:flex-end}
-      .btn{display:inline-flex;align-items:center;justify-content:center;gap:calc(var(--spacing)*1.5);height:34px;padding:0 calc(var(--spacing)*3);border:1px solid transparent;border-radius:var(--radius);cursor:pointer;font:500 13px/1 var(--font-sans);white-space:nowrap}
+      .hero h1{margin:4px 0 0;font:600 clamp(18px,2vw,24px)/1.15 var(--font-sans);letter-spacing:-.01em}
+      .hero p{margin:2px 0 0;color:var(--muted-foreground);max-width:560px;font-size:12px;line-height:1.5}
+      .hero-actions,.card-actions{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0;max-width:100%;margin-left:auto;justify-content:flex-end}
+      .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);cursor:pointer;font:500 12px/1 var(--font-sans);white-space:nowrap}
       .btn:focus-visible,.nav-item:focus-visible,.icon-btn:focus-visible,.table-action:focus-visible,.workspace:focus-visible,.cta:focus-visible,.user-pill:focus-visible,.toggle-input:focus-visible{outline:0;box-shadow:0 0 0 2px var(--background),0 0 0 4px var(--ring)}
-      .btn.sm{height:28px;padding:0 calc(var(--spacing)*2.5);font-size:12px;gap:calc(var(--spacing)*1)}
+      .btn.sm{height:26px;padding:0 8px;font-size:11px;gap:4px}
       .btn-primary{background:var(--foreground);color:var(--background);border:1px solid var(--foreground);box-shadow:var(--shadow-xs)}
       .btn-primary:hover{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
       .btn-secondary{background:var(--secondary);color:var(--secondary-foreground);border-color:var(--border)}
       .btn-secondary:hover{background:var(--accent);color:var(--accent-foreground)}
       .btn-ghost{background:transparent;color:var(--foreground);border-color:var(--border)}
       .btn-ghost:hover{background:var(--accent);color:var(--accent-foreground)}
-      .metrics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(var(--spacing)*3);align-items:stretch;grid-auto-rows:minmax(140px,auto)}
-      .panel-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,.95fr);gap:calc(var(--spacing)*3);align-items:stretch}
-      .card{display:flex;flex-direction:column;gap:calc(var(--spacing)*3);padding:calc(var(--spacing)*3.5);border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--card-foreground);min-width:0;min-height:0;height:100%;overflow:hidden}
+      .metrics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-items:stretch;grid-auto-rows:minmax(80px,auto)}
+      .panel-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,.95fr);gap:6px;align-items:stretch}
+      .card{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--card-foreground);min-width:0;min-height:0;height:100%;overflow:hidden}
       .card>*{min-width:0}
-      .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:calc(var(--spacing)*3);min-width:0;flex-wrap:wrap}
+      .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;min-width:0;flex-wrap:wrap}
       .card-header>div:first-child{flex:1 1 220px;min-width:0}
-      .card h3{margin:0;font:600 14px/1.3 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .metric-value{font:600 28px/1.1 var(--font-sans);letter-spacing:-.02em;white-space:nowrap}
-      .metric-sub{color:var(--muted-foreground);font-size:12px}
-      .metric-foot,.table-note{color:var(--muted-foreground);font-size:12px}
-      .progress-track{height:6px;border-radius:3px;background:var(--muted);overflow:hidden}
-      .progress-fill{height:100%;border-radius:3px;background:var(--foreground);transition:width .3s ease}
-      .kpi-delta{display:inline-flex;align-items:center;gap:calc(var(--spacing)*1);color:var(--success);font-size:12px;font-weight:500}
-      .header-icon{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--background);color:var(--muted-foreground)}
+      .card h3{margin:0;font:600 13px/1.3 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .metric-value{font:600 22px/1.1 var(--font-sans);letter-spacing:-.02em;white-space:nowrap}
+      .metric-sub{color:var(--muted-foreground);font-size:11px}
+      .metric-foot,.table-note{color:var(--muted-foreground);font-size:11px}
+      .progress-track{height:4px;border-radius:2px;background:var(--muted);overflow:hidden}
+      .progress-fill{height:100%;border-radius:2px;background:var(--foreground);transition:width .3s ease}
+      .kpi-delta{display:inline-flex;align-items:center;gap:4px;color:var(--success);font-size:11px;font-weight:500}
+      .header-icon{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--background);color:var(--muted-foreground)}
       .table-wrap{min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain}
       .data-table{width:100%;min-width:560px;border-collapse:collapse;table-layout:fixed}
-      .data-table th,.data-table td{padding:calc(var(--spacing)*2.5) calc(var(--spacing)*3);border-bottom:1px solid var(--border);text-align:left;font-size:12.5px;vertical-align:middle}
+      .data-table th,.data-table td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:left;font-size:12px;vertical-align:middle}
       .data-table th{font:500 10.5px/1 var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);white-space:nowrap}
       .data-table td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .data-table tr:last-child td{border-bottom:0}
@@ -580,12 +481,12 @@ img,video{max-width:100%;height:auto}
       .table-action:hover{background:var(--accent);color:var(--accent-foreground)}
       .table-action:disabled{opacity:.45;cursor:not-allowed}
       .list-stack{display:grid;gap:0;min-width:0}
-      .list-line{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:calc(var(--spacing)*3);padding:calc(var(--spacing)*2) 0;border-bottom:1px solid var(--border);font-size:13px;min-width:0}
+      .list-line{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;min-width:0}
       .list-line>div:first-child{min-width:0}
       .list-line:last-child{border-bottom:0;padding-bottom:0}
       .list-line strong{font-weight:500}
-      .list-line small{display:block;margin-top:calc(var(--spacing)*0.75);color:var(--muted-foreground);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .list-head{display:inline-flex;align-items:center;gap:calc(var(--spacing)*2);white-space:nowrap;min-width:0;max-width:100%}
+      .list-line small{display:block;margin-top:2px;color:var(--muted-foreground);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .list-head{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-width:0;max-width:100%}
       .note-icon{flex:none;display:inline-flex;align-items:center;justify-content:center}
       .note-icon.is-low{color:var(--success)}
       .note-icon.processing{color:var(--chart-1)}
@@ -593,32 +494,6 @@ img,video{max-width:100%;height:auto}
       .severity.is-low{background:var(--success-subtle);color:var(--success-strong)}
       .severity.is-processing{background:color-mix(in srgb,var(--chart-2) 15%,var(--background));color:var(--chart-1)}
       @keyframes screenIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-      /* Compact layout overrides */
-      .app-shell{grid-template-columns:200px minmax(0,1fr)!important}
-      .sidebar{padding:8px 10px!important;gap:4px!important}
-      .workspace{padding:5px 8px!important;gap:6px!important}
-      .cta{padding:6px 10px!important;font-size:12px!important;background:var(--foreground)!important;color:var(--background)!important;border-color:var(--border)!important}
-      .cta:hover{background:var(--primary)!important;color:var(--primary-foreground)!important}
-      .nav-item{padding:6px 8px!important;gap:8px!important;font-size:12px!important}
-      .nav-meta{padding-top:6px!important}
-      .topbar{padding:8px 16px!important;gap:10px!important}
-      .screen-shell{padding:14px 16px!important;gap:12px!important}
-      .hero{gap:8px!important;margin-bottom:4px}
-      .hero h1{font-size:clamp(18px,2vw,24px)!important;margin-top:4px!important}
-      .hero p{margin-top:2px!important;font-size:12px!important}
-      .card{padding:12px 14px!important;gap:8px!important}
-      .card-header{gap:8px!important}
-      .card h3{font-size:13px!important}
-      .metric-value{font-size:22px!important}
-      .metrics-grid{gap:10px!important}
-      .panel-grid{gap:10px!important}
-      .data-table th,.data-table td{padding:6px 10px!important;font-size:12px!important}
-      .metric-sub,.metric-foot{font-size:11px!important}
-      .kpi-delta{font-size:11px!important}
-      .progress-track{height:4px!important}
-      .icon-btn{width:28px!important;height:28px!important}
-      .search{height:32px!important}
-      .list-line{padding:6px 0!important;gap:8px!important}
       @media (max-width:1080px){
         .topbar{padding:calc(var(--spacing)*3)}
         .screen-shell{padding:calc(var(--spacing)*3.5)}

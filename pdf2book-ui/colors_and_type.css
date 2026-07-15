@@ -124,6 +124,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   /* bg */
   --background: #0a0a0a;
   --card: #171717;
@@ -205,4 +207,14 @@
   --shadow-lg: 0 1px 0px 0px rgba(0, 0, 0, 0), 0 4px 6px -1px rgba(0, 0, 0, 0);
   --shadow-xl: 0 1px 0px 0px rgba(0, 0, 0, 0), 0 8px 10px -1px rgba(0, 0, 0, 0);
   --shadow-2xl: 0 1px 0px 0px rgba(0, 0, 0, 0);
+}
+
+/* Honor reduced motion preference globally */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -33,16 +33,21 @@ PDF2BOOK/
 └── workspace/   # Intermediate artifacts (per-book workspace/{stem}/)
 ```
 
-## Two Ways to Use
+## Three Ways to Use
 
-Both modes let AI fully handle proofreading, layout, and metadata — no manual review needed.
+All three modes let AI fully handle proofreading, layout, and metadata — no manual review needed.
 
-| Mode | Use case | API key | AI work done by |
-|---|---|---|---|
-| **CLI mode** | Command-line batch, scripting | Yes (config.yaml) | External LLM (e.g. GPT-4o-mini) |
-| **Skill mode** | Natural language in any AI agent | No | Agent's own reasoning |
+**Recommended priority: CLI > Skill > WebUI (optional).** CLI and Skill are the core paths; WebUI is a non-essential visual extension that builds on top of the CLI engine.
 
-### CLI Mode
+| Priority | Mode | Use case | API key | AI work done by | Install |
+|---|---|---|---|---|---|
+| **1 (recommended)** | **CLI mode** | Command-line batch, scripting, automation | Yes (config.yaml) | External LLM (e.g. GPT-4o-mini) | `pip install -e ".[ocr]"` |
+| **2** | **Skill mode** | Natural language in any AI agent | No | Agent's own reasoning | One-line install via Skill file |
+| **3 (optional)** | **WebUI mode** | Browser-based preview & per-module typesetting | Optional | External LLM or agent | `pip install -e ".[ocr,web]"` |
+
+> **Note**: WebUI is an optional extension. The core CLI (`ocr`/`epub`/`convert`/`batch`) works without the `web` extra installed. Use WebUI only if you need a visual interface for previewing and editing modules.
+
+### CLI Mode (Recommended)
 
 Fill in `api_key` in `config.yaml` — AI review auto-enables, no extra flags:
 
@@ -73,6 +78,24 @@ Then just say "convert XX.pdf to EPUB". The agent reads the 9-step workflow, aut
 - **Skill file**: [`skills/pdf2book/SKILL.md`](skills/pdf2book/SKILL.md)
 - **Agent entry**: [`AGENTS.md`](AGENTS.md) (auto-read by Claude Code, Cursor, Codex, etc.)
 
+### WebUI Mode (Optional Extension)
+
+A browser-based interface built on top of the CLI engine, with split-view preview and per-module typesetting controls. Useful for users who prefer visual editing over the command line.
+
+```bash
+# 1. Install with the optional 'web' extra
+pip install -e ".[ocr,web]"
+
+# 2. Launch the server
+pdf2book web                          # http://127.0.0.1:8000
+pdf2book web --port 9000 --host 0.0.0.0   # Custom host/port
+```
+
+When FastAPI is not installed, the `web` subcommand prints install instructions and exits cleanly — core CLI commands remain fully functional.
+
+- **UI assets**: [`pdf2book-ui/`](pdf2book-ui/) (HTML/CSS/JS, no build step)
+- **Backend**: [`src/pdf2book/web/`](src/pdf2book/web/) (FastAPI routes + convert manager)
+
 ## Installation
 
 ### System Requirements
@@ -95,12 +118,13 @@ pip install -e ".[ocr,dev]"
 
 ### Optional Dependencies
 
-| Extras | Description | Install |
-|---|---|---|
-| `ocr` | PaddleOCR PP-StructureV3 (default backend) | `pip install -e ".[ocr]"` |
-| `rapid` | RapidOCR lightweight (~50MB) | `pip install -e ".[rapid]"` |
-| `cloud` | Remote OCR API backend | `pip install -e ".[cloud]"` |
-| `dev` | Testing and linting tools | `pip install -e ".[dev]"` |
+| Extras | Description | Required for | Install |
+|---|---|---|---|
+| `ocr` | PaddleOCR PP-StructureV3 (default backend) | Core OCR | `pip install -e ".[ocr]"` |
+| `rapid` | RapidOCR lightweight (~50MB) | Alternative OCR | `pip install -e ".[rapid]"` |
+| `cloud` | Remote OCR API backend | Alternative OCR | `pip install -e ".[cloud]"` |
+| `web` | FastAPI + Uvicorn | **WebUI only** (optional) | `pip install -e ".[web]"` |
+| `dev` | Testing and linting tools | Development | `pip install -e ".[dev]"` |
 
 ## Core Highlight: AI as Decision Maker
 
@@ -307,8 +331,9 @@ PDF2BOOK/
 ├── config.yaml            # Config (auto-loaded)
 ├── AGENTS.md              # Universal AI agent entry point
 ├── skills/pdf2book/SKILL.md  # Portable AI Skill file
+├── pdf2book-ui/           # OPTIONAL WebUI assets (HTML/CSS/JS, no build step)
 └── src/pdf2book/
-    ├── cli.py              # Typer CLI entry
+    ├── cli.py              # Typer CLI entry (core)
     ├── __main__.py         # python -m pdf2book support
     ├── pipeline.py         # Two-stage pipeline orchestration
     ├── batch.py            # Batch parallel conversion
@@ -334,6 +359,12 @@ PDF2BOOK/
     │   ├── metadata.py         # Metadata YAML + BookMetadata
     │   ├── toc_links.py        # TOC linkification
     │   └── templates/kindle.css # Kindle-optimized CSS
+    ├── web/                # OPTIONAL FastAPI WebUI (requires '[web]' extra)
+    │   ├── server.py           # App factory
+    │   ├── routes.py           # REST API + page routes
+    │   ├── convert_manager.py  # Web-triggered conversion orchestration
+    │   ├── module_parser.py    # book.md ↔ structured modules
+    │   └── models.py           # Pydantic models for API
     ├── progress.py         # Progress reporting abstraction
     ├── pdf/                # PDF rendering & metadata
     └── utils/              # SQLite cache, logging, .env writer
@@ -382,12 +413,18 @@ Contributions welcome! Please follow this workflow:
 
 ### Architecture
 
-Modular design with core layers:
+Modular design with strict separation between **core** and **optional extension** layers:
+
+**Core layers** (always available, no optional deps):
 
 - **OCR layer** (`ocr/`): Pluggable backends with unified `OCRBackend` abstract base
 - **Post-processing layer** (`postprocess/`): Rule-based text processing — page classification, CIP extraction, confidence filtering
 - **AI review layer** (`review/`): Optional LLM proofreading with constraint-validation retry loop
 - **EPUB layer** (`epub/`): Pandoc-driven generation with Kindle-optimized CSS
+
+**Optional extension layers** (require extra install, won't affect core CLI if absent):
+
+- **WebUI layer** (`web/` + `pdf2book-ui/`): FastAPI server + static HTML/CSS/JS for browser-based editing. Loaded lazily via `pdf2book web` subcommand; missing `fastapi`/`uvicorn` triggers a clean install-hint exit, never breaks `ocr`/`epub`/`convert`/`batch`.
 
 ## License
 

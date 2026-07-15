@@ -108,7 +108,7 @@ class RichReporter:
         self._tasks: dict[str, int] = {}
         self._totals: dict[str, int | None] = {}
 
-    def __enter__(self) -> "RichReporter":
+    def __enter__(self) -> RichReporter:
         self._progress.start()
         return self
 

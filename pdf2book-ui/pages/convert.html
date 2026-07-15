@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0a0a">
     <title>PDF转换 - PDF2BOOK</title>
     <link rel="stylesheet" href="../colors_and_type.css">
     <link rel="stylesheet" href="../components.css">
@@ -116,66 +117,42 @@ img,video{max-width:100%;height:auto}
 <body class="min-h-screen font-sans antialiased" x-data="convertPage()" x-init="init()">
     <div class="app-shell">
       <aside class="sidebar" data-component="sidebar">
-        <div class="workspace-btn">
+        <button class="workspace focusable" aria-label="切换工作区">
           <span class="ws-avatar"></span>
           <span class="ws-name">PDF2BOOK</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ws-chevron"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
-        </div>
-        <a href="/pages/convert" class="cta-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+          <span class="ws-collapse"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></span>
+        </button>
+        <a href="/pages/convert" class="cta focusable">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
           <span>新建转换</span>
         </a>
         <nav class="nav-list">
-          <a href="/pages/dashboard" class="nav-item" data-dom-id="nav-dashboard">
+          <a href="/pages/dashboard" class="nav-item focusable" data-dom-id="nav-dashboard">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
             <span>仪表盘</span>
           </a>
-          <a href="/pages/convert" class="nav-item active">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          <button class="nav-item active focusable">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></svg>
             <span>转换</span>
+          </button>
+          <a href="/pages/edit" class="nav-item focusable">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            <span>编辑与排版</span>
           </a>
-          <a href="/pages/library" class="nav-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg>
-            <span>书库</span>
-          </a>
-          <a href="/pages/review" class="nav-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <a href="/pages/review" class="nav-item focusable">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>
             <span>AI审查</span>
           </a>
-          <a href="/pages/edit" class="nav-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg>
-            <span>排版编辑</span>
+          <a href="/pages/library" class="nav-item focusable">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+            <span>书库</span>
           </a>
         </nav>
-        <button class="section-head">
-          <span>最近文件</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </button>
-        <div class="recent-list">
-          <button class="recent-item">
-            <span class="recent-dot"></span>
-            <span class="recent-text truncate">三体.epub</span>
-          </button>
-          <button class="recent-item">
-            <span class="recent-dot"></span>
-            <span class="recent-text truncate">百年孤独.epub</span>
-          </button>
-          <button class="recent-item">
-            <span class="recent-dot"></span>
-            <span class="recent-text truncate">人类简史.epub</span>
-          </button>
-          <button class="recent-item is-more">
-            <span class="recent-dot">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-            </span>
-            <span class="recent-text">更多</span>
-          </button>
-        </div>
         <div class="nav-meta">
-          <button class="user-pill">
+          <button class="user-pill focusable">
             <span class="ws-avatar"></span>
-            <span class="user-handle truncate">charl</span>
-            <span class="plan-badge">Pro</span>
+            <span class="user-handle">用户</span>
           </button>
         </div>
       </aside>
@@ -229,15 +206,15 @@ img,video{max-width:100%;height:auto}
                 </div>
                 <div class="drop-title">拖拽PDF文件到此处，或点击选择</div>
                 <div class="drop-sub">支持 PDF 格式，单文件最大 500MB</div>
-                <button class="btn btn-secondary mt-2">选择文件</button>
+                <a href="#file-selector" class="btn btn-secondary mt-2">选择文件</a>
               </div>
 
               <!-- File selector -->
-              <div class="field-row">
+              <div class="field-row" id="file-selector">
                 <label class="field-label">或从 inbox/ 选择</label>
-                <div class="select-shell" @click="$refs.fileSelect.open ? $refs.fileSelect.close() : $refs.fileSelect.show()">
+                <div class="select-shell">
                   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
-                  <span class="select-value truncate" x-text="selectedFile ? selectedFile.filename : (inboxFiles.length === 0 ? 'inbox/ 为空' : '选择PDF文件...')"></span>
+                  <span class="select-value truncate" x-text="selectedFile ? selectedFile.filename : (inboxFiles.length === 0 ? 'inbox/ 为空' : '选择PDF文件…')"></span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="select-caret"><path d="m6 9 6 6 6-6"/></svg>
                   <select x-ref="fileSelect" x-model="selectedStem" style="position:absolute;inset:0;opacity:0;cursor:pointer">
                     <template x-for="f in inboxFiles" :key="f.filename">
@@ -271,7 +248,7 @@ img,video{max-width:100%;height:auto}
               <!-- Primary action -->
               <button class="btn btn-primary btn-large" @click="startConvert()" :disabled="!selectedStem || converting">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></svg>
-                <span x-text="converting ? '转换中...' : '开始转换'"></span>
+                <span x-text="converting ? '转换中…' : '开始转换'"></span>
               </button>
             </article>
 
@@ -317,7 +294,7 @@ img,video{max-width:100%;height:auto}
                     </span>
                     <div class="stage-info">
                       <div class="stage-name" :class="{ 'muted-text': stage.state === 'pending' || stage.state === 'skipped' }" x-text="stage.label"></div>
-                      <div class="stage-detail" :class="{ 'muted-text': stage.state === 'pending' || stage.state === 'skipped' }" x-text="stage.detail || (stage.state === 'active' ? '进行中...' : '等待中')"></div>
+                      <div class="stage-detail" :class="{ 'muted-text': stage.state === 'pending' || stage.state === 'skipped' }" x-text="stage.detail || (stage.state === 'active' ? '进行中…' : '等待中')"></div>
                     </div>
                   </div>
                 </template>
@@ -337,7 +314,7 @@ img,video{max-width:100%;height:auto}
               <!-- Live log -->
               <div class="log-area" x-show="viewMode !== 'idle'" x-cloak>
                 <template x-if="recentLogs.length === 0">
-                  <div class="log-empty">等待日志输出...</div>
+                  <div class="log-empty">等待日志输出…</div>
                 </template>
                 <template x-for="(line, idx) in recentLogs" :key="idx">
                   <div class="log-line" :class="{ 'log-current': idx === recentLogs.length - 1 && viewMode === 'converting' }">
@@ -374,7 +351,7 @@ img,video{max-width:100%;height:auto}
               <div class="card-actions">
                 <button class="btn btn-ghost btn-sm" @click="loadInbox()" :disabled="loading">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
-                  <span x-text="loading ? '加载中...' : '刷新'"></span>
+                  <span x-text="loading ? '加载中…' : '刷新'"></span>
                 </button>
               </div>
             </div>
@@ -532,7 +509,7 @@ img,video{max-width:100%;height:auto}
       /* Form fields */
       .field-row{display:grid;gap:calc(var(--spacing)*1.5)}
       .field-label{font-size:12px;color:var(--muted-foreground);font-weight:500}
-      .select-shell{height:38px;display:flex;align-items:center;gap:calc(var(--spacing)*2.5);padding:0 calc(var(--spacing)*3);border:1px solid var(--input);border-radius:var(--radius);background:var(--background);font-size:13px;cursor:pointer}
+      .select-shell{position:relative;height:38px;display:flex;align-items:center;gap:calc(var(--spacing)*2.5);padding:0 calc(var(--spacing)*3);border:1px solid var(--input);border-radius:var(--radius);background:var(--background);font-size:13px;cursor:pointer;overflow:hidden}
       .select-shell svg{color:var(--muted-foreground);flex:none}
       .select-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--foreground)}
       .select-caret{margin-left:auto}
@@ -664,11 +641,23 @@ img,video{max-width:100%;height:auto}
         .data-table{min-width:540px}
         .card-actions{width:100%}
       }
+
+      /* Touch optimization: eliminate 300ms tap delay on interactive elements */
+      button, a, [role="button"], .nav-item, .icon-btn, .btn, .table-action, .toggle-input, .pill-btn, .book-action-btn, .pill-toggle, .upload-zone, .drop-zone, .select-shell{touch-action:manipulation}
+      /* Tabular numerals for numeric displays (prevents column jitter) */
+      .progress-pct, .mono, .stage-detail, .subtle{font-variant-numeric:tabular-nums}
+      /* Focus ring for table-action (not covered by .focusable) */
+      .table-action:focus-visible{outline:0;box-shadow:0 0 0 2px var(--background),0 0 0 4px var(--ring)}
+      /* Reduced motion: disable animations and transitions */
+      @media (prefers-reduced-motion: reduce){
+        .screen-shell{animation:none}
+        *{transition-duration:0.01ms !important;animation-duration:0.01ms !important;animation-iteration-count:1 !important}
+      }
     </style>
 
     <!-- Alpine.js (reactivity, ~15KB) -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- Convert page logic -->
-    <script src="../assets/js/convert.js?v=1"></script>
+    <script src="../assets/js/convert.js?v=2"></script>
     </body>
 </html>

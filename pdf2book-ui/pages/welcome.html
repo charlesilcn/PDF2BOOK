@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0a0a">
     <title>欢迎使用 PDF2BOOK</title>
     <link rel="stylesheet" href="../colors_and_type.css">
     <link rel="stylesheet" href="../components.css">
@@ -376,6 +377,12 @@ img,video{max-width:100%;height:auto}
             background: var(--accent);
         }
 
+        .welcome-ghost:focus-visible {
+            outline: 2px solid var(--ring);
+            outline-offset: 2px;
+            color: var(--foreground);
+        }
+
         .welcome-version {
             margin-top: 32px;
             font-family: var(--font-mono);
@@ -416,6 +423,13 @@ img,video{max-width:100%;height:auto}
                 height: 64px;
                 margin-bottom: 28px;
             }
+        }
+
+        /* Touch optimization: eliminate 300ms tap delay on interactive elements */
+        .welcome-cta, .welcome-ghost, a, button{touch-action:manipulation}
+        /* Reduced motion: globally disable animations and transitions */
+        @media (prefers-reduced-motion: reduce){
+            *{transition-duration:0.01ms !important;animation-duration:0.01ms !important;animation-iteration-count:1 !important}
         }
     </style>
     </body>

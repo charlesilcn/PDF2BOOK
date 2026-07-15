@@ -19,7 +19,6 @@ from pathlib import Path
 
 from pdf2book.config import AppConfig, isolate_work_dir
 from pdf2book.pipeline import ConversionPipeline
-from pdf2book.progress import ProgressReporter
 
 
 class ConversionStatus:

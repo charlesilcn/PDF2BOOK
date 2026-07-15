@@ -1423,7 +1423,6 @@ def build_review_batches(
     titles = issues.get("title_candidates", [])
     deco_candidates = issues.get("decoration_candidates", [])
     deco_images = issues.get("decoration_review_images", [])
-    review_images = issues.get("review_images", [])
 
     # --- Batch 1..N: Low-confidence texts (chunked, text-only) ---
     # Low-confidence batches are text-only: page screenshots cause the model

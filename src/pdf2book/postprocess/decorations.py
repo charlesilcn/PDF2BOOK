@@ -192,8 +192,8 @@ def _phash(path: Path) -> str | None:
     "cannot classify, leave the image alone."
     """
     try:
-        from PIL import Image
         import numpy as np
+        from PIL import Image
         from scipy.fft import dct
     except ImportError:
         return None

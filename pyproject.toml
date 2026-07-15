@@ -34,6 +34,9 @@ rapid = [
 cloud = [
     "httpx>=0.27",
 ]
+# WebUI is an OPTIONAL extension module. Core CLI (ocr/epub/convert/batch)
+# works without it. Install only if you need the browser-based UI:
+#   pip install 'pdf2book[web]'
 web = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",

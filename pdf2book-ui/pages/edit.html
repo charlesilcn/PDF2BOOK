@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0a0a">
     <title>编辑与排版 - PDF2BOOK</title>
     <link rel="stylesheet" href="../colors_and_type.css">
     <link rel="stylesheet" href="../components.css">
@@ -176,7 +177,7 @@ img,video{max-width:100%;height:auto}
             </div>
             <div class="edit-toolbar-right">
               <!-- Book selector dropdown -->
-              <select class="select-shell" x-model="currentBook" @change="loadBook($event.target.value)">
+              <select class="select-shell" x-model="currentBook" @change="loadBook($event.target.value)" aria-label="选择书目">
                 <option value="">选择书目…</option>
                 <template x-for="book in books" :key="book.stem">
                   <option :value="book.stem" x-text="book.stem"></option>
@@ -235,7 +236,7 @@ img,video{max-width:100%;height:auto}
                       <span class="word-count" x-text="mod.word_count > 0 ? mod.word_count + ' 字' : typeLabel(mod.type)"></span>
                     </div>
                     <div class="module-actions">
-                      <button class="module-action-btn danger" title="删除" @click.stop="deleteModule(idx)">
+                      <button class="module-action-btn danger" title="删除" aria-label="删除模块" @click.stop="deleteModule(idx)">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
                       </button>
                     </div>
@@ -293,7 +294,7 @@ img,video{max-width:100%;height:auto}
                   <span class="field-label">首行缩进</span>
                   <div class="field-control">
                     <button class="toggle-input" :class="{ 'is-on': !hasLayoutClass('no-indent') }"
-                            @click="toggleLayoutClass('no-indent')">
+                            @click="toggleLayoutClass('no-indent')" aria-label="首行缩进 2em" role="switch" :aria-checked="!hasLayoutClass('no-indent')">
                       <div class="toggle-core"><span></span></div>
                       <span class="toggle-label">2em</span>
                     </button>
@@ -305,15 +306,15 @@ img,video{max-width:100%;height:auto}
                   <div class="field-control">
                     <div class="pill-group">
                       <button class="pill-btn" :class="{ active: hasLayoutClass('align-left') }"
-                              @click="setAlignment('left')" title="左对齐">
+                              @click="setAlignment('left')" title="左对齐" aria-label="左对齐">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="15" y1="12" y2="12"/><line x1="3" x2="18" y1="18" y2="18"/></svg>
                       </button>
                       <button class="pill-btn" :class="{ active: !hasLayoutClass('align-left') && !hasLayoutClass('align-center') }"
-                              @click="setAlignment('justify')" title="两端对齐">
+                              @click="setAlignment('justify')" title="两端对齐" aria-label="两端对齐">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
                       </button>
                       <button class="pill-btn" :class="{ active: hasLayoutClass('align-center') }"
-                              @click="setAlignment('center')" title="居中">
+                              @click="setAlignment('center')" title="居中" aria-label="居中">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" x2="21" y1="6" y2="6"/><line x1="6" x2="18" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
                       </button>
                     </div>
@@ -622,6 +623,11 @@ img,video{max-width:100%;height:auto}
       .preview-label { font: 500 10.5px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); }
       .preview-book { font: 500 13px/1 var(--font-sans); color: var(--foreground); }
       .preview-scroll { flex: 1; overflow-y: auto; padding: 0; }
+
+      /* Touch optimization: eliminate 300ms tap delay on interactive elements */
+      button, a, [role="button"], [role="switch"], .nav-item, .icon-btn, .btn, .pill-btn, .toggle-input, .module-action-btn, .select-shell, .edit-tab, .ocr-card{touch-action:manipulation}
+      /* Tabular numerals for numeric displays (prevents column jitter) */
+      .word-count, .book-meta, .preview-label, .font-mono{font-variant-numeric:tabular-nums}
     </style>
 
     <!-- Alpine.js (reactivity, ~15KB) -->

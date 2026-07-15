@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0a0a">
     <title>书库管理 - PDF2BOOK</title>
     <link rel="stylesheet" href="../colors_and_type.css">
     <link rel="stylesheet" href="../components.css">
@@ -127,61 +128,39 @@ img,video{max-width:100%;height:auto}
         <button class="workspace focusable" aria-label="切换工作区">
           <span class="ws-avatar"></span>
           <span class="ws-name">PDF2BOOK</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem;color:var(--muted-foreground)"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+          <span class="ws-collapse"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></span>
         </button>
         <a href="/pages/convert" class="cta focusable">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
           <span>新建转换</span>
         </a>
-        <nav class="nav-list" aria-label="主导航">
+        <nav class="nav-list">
           <a href="/pages/dashboard" class="nav-item focusable" data-dom-id="nav-dashboard-back">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
             <span>仪表盘</span>
           </a>
           <a href="/pages/convert" class="nav-item focusable">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>
-            <span>转换队列</span>
-          </a>
-          <a href="/pages/review" class="nav-item focusable">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/></svg>
-            <span>AI 审校</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></svg>
+            <span>转换</span>
           </a>
           <a href="/pages/edit" class="nav-item focusable">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-            <span>编辑</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            <span>编辑与排版</span>
           </a>
-          <a href="/pages/library" class="nav-item active focusable" aria-current="page">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+          <a href="/pages/review" class="nav-item focusable">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>
+            <span>AI审查</span>
+          </a>
+          <button class="nav-item active focusable">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
             <span>书库</span>
-          </a>
+          </button>
         </nav>
-        <div class="section-head focusable" role="button">
-          <span>最近转换</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.75rem;height:0.75rem"><path d="m6 9 6 6 6-6"/></svg>
-        </div>
-        <div class="recent-list">
-          <button class="recent-item focusable">
-            <span class="recent-dot" style="border-color:var(--success-strong)"></span>
-            <span class="recent-text">三体</span>
-          </button>
-          <button class="recent-item focusable">
-            <span class="recent-dot" style="border-color:var(--success-strong)"></span>
-            <span class="recent-text">百年孤独</span>
-          </button>
-          <button class="recent-item focusable">
-            <span class="recent-dot" style="border-style:solid;border-color:var(--muted-foreground);opacity:1"></span>
-            <span class="recent-text">活着</span>
-          </button>
-          <button class="recent-item is-more focusable">
-            <span class="recent-dot"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span>
-            <span class="recent-text">更多</span>
-          </button>
-        </div>
         <div class="nav-meta">
-          <button class="user-pill focusable" aria-label="用户菜单">
+          <button class="user-pill focusable">
             <span class="ws-avatar"></span>
-            <span class="user-handle">charles</span>
-            <span class="plan-badge">PRO</span>
+            <span class="user-handle">用户</span>
           </button>
         </div>
       </aside>
@@ -192,7 +171,7 @@ img,video{max-width:100%;height:auto}
         <header class="topbar">
           <div class="search">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="text" placeholder="搜索书籍、作者、标签..." aria-label="搜索">
+            <input type="text" placeholder="搜索书籍、作者、标签…" aria-label="搜索">
           </div>
           <div class="toolbar">
             <button class="icon-btn focusable" aria-label="通知">
@@ -288,7 +267,7 @@ img,video{max-width:100%;height:auto}
           <div class="toolbar-row">
             <div class="search toolbar-search">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.0rem;height:1.0rem"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" placeholder="筛选书名或作者..." aria-label="筛选书籍" x-model="searchQuery">
+              <input type="text" placeholder="筛选书名或作者…" aria-label="筛选书籍" x-model="searchQuery">
               <button x-show="searchQuery" @click="searchQuery = ''" class="toolbar-clear focusable" aria-label="清空筛选" type="button">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
               </button>
@@ -301,7 +280,7 @@ img,video{max-width:100%;height:auto}
               </button>
               <button class="btn ghost sm focusable" @click="refresh()" :disabled="loading">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:0.875rem;height:0.875rem"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-                <span x-text="loading ? '刷新中...' : '刷新列表'"></span>
+                <span x-text="loading ? '刷新中…' : '刷新列表'"></span>
               </button>
               <div class="view-switch" role="tablist" aria-label="视图切换">
                 <button class="pill-toggle focusable" :class="{ active: viewMode === 'grid' }" data-view="grid" role="tab" :aria-selected="viewMode === 'grid'" @click="viewMode = 'grid'">
@@ -324,7 +303,7 @@ img,video{max-width:100%;height:auto}
               <template x-if="loading">
                 <div class="loading-state" style="grid-column:1/-1">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.25rem;height:1.25rem;display:inline-block;vertical-align:middle;margin-right:6px;animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                  <span>正在加载书库...</span>
+                  <span>正在加载书库…</span>
                 </div>
               </template>
 
@@ -471,7 +450,7 @@ img,video{max-width:100%;height:auto}
                   <tbody>
                     <!-- Loading state -->
                     <template x-if="loading">
-                      <tr><td colspan="6" class="loading-state" style="text-align:center">正在加载书库...</td></tr>
+                      <tr><td colspan="6" class="loading-state" style="text-align:center">正在加载书库…</td></tr>
                     </template>
                     <!-- Empty state -->
                     <template x-if="books.length === 0 && !loading">
@@ -796,6 +775,10 @@ img,video{max-width:100%;height:auto}
       .toolbar-clear{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;color:var(--muted-foreground);flex:none;border:0;background:transparent;cursor:pointer}
       .toolbar-clear:hover{background:var(--accent);color:var(--accent-foreground)}
       [x-cloak]{display:none!important}
+      /* Touch optimization: eliminate 300ms tap delay on interactive elements */
+      button, a, [role="button"], .nav-item, .icon-btn, .btn, .focusable, .cta, .view-tab, .book-action-btn, .toolbar-clear{touch-action:manipulation}
+      /* Tabular numerals for numeric displays (prevents column jitter) */
+      .metric-value, .mono-cell, .font-mono, code{font-variant-numeric:tabular-nums}
     </style>
 </body>
 </html>

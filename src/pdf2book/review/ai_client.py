@@ -197,7 +197,6 @@ class AIClient:
         from pdf2book.review.markdown_review import (
             apply_markdown_corrections,
             build_review_batches,
-            build_review_prompt,
             collect_markdown_issues,
             merge_corrections,
         )
